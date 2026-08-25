@@ -1,0 +1,33 @@
+---
+description: Vue 渲染层、工具弹窗与 UI 美观约定
+globs: src/**/*.{vue,ts,css}
+alwaysApply: false
+---
+
+# Vue Renderer
+
+## 结构
+
+- 页面入口：`App.vue`（工具箱 / 历史 / 设置）。
+- 工具弹窗：`src/components/dialogs/*Dialog.vue`。
+- 历史详情：`src/components/history/*Detail.vue`。
+- 新工具：ToolBox 入口 → Dialog → 成功/失败写 `history:add` → 对应 Detail。
+
+## 实现
+
+- 优先 Element Plus；不要无故引入新 UI 库（已有 Naive / tdesign 冗余，勿再加）。
+- 可复用的请求/解析/历史写入抽公共模块；一次性 UI 胶水留在组件即可。
+- IPC 只用 `window.ipcRenderer` 白名单；`HistoryRecord` 等类型统一，勿各组件私定不兼容结构。
+
+## UI 美观（在现有设计体系内）
+
+- **跟现有视觉**：延续当前布局、色板、间距、标题栏拖拽区；不做无关的整站换肤。
+- **一张构图**：工具页/弹窗信息层级清晰——标题、主操作、次要说明，避免堆一排无意义卡片/徽章。
+- **状态完整**：加载、空态、成功、失败都有可读反馈；按钮禁用与 loading 对齐，防重复提交。
+- **密度与对齐**：表单标签对齐、间距一致；长文本可截断/换行，勿撑破弹窗。
+- **动效克制**：过渡用于层级与反馈，不做炫光、多层阴影、装饰性粒子。
+- 任务若是视觉改版，再动 `style.css` 与全局 token；日常功能以好用且整齐为准。
+
+## 历史记录
+
+写入至少包含：`moduleName`、`appName`、`content`、`status`（`success` | `error` | `running`）。

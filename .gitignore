@@ -1,0 +1,80 @@
+# === 依赖 ===
+node_modules/
+
+# === 构建产物 ===
+dist/
+dist-ssr/
+dist-electron/
+release/
+out/
+*.tsbuildinfo
+.vite/
+
+# === 日志 ===
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# === 环境与本地配置 ===
+*.local
+.env
+.env.*
+!.env.example
+.vscode/.debug.env
+
+# === 本地 brainstorm 示意 ===
+.superpowers/
+
+# === Git worktrees ===
+.worktrees/
+
+# === 编辑器 / IDE ===
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*~
+
+# === 操作系统 ===
+.DS_Store
+**/.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+._*
+
+# === CodeGraph 本地索引（机器级，勿提交） ===
+.codegraph/
+
+# === Windows 打包用 ffmpeg（体积过大，本机自行放置） ===
+resources/ffmpeg/*.exe
+
+# === 测试 / 覆盖率 / 缓存 ===
+coverage/
+.nyc_output/
+.cache/
+*.tmp
+*.temp
+tmp/
+temp/
+
+# === Electron / 原生构建残留 ===
+*.unpacked/
+*.blockmap
+
+# === 模板 / 本地杂项（与业务无关） ===
+wallpapers/
+electron-vite-vue.gif
+vite.config.flat.txt
+
+# === 锁文件（沿用原策略；若团队要可复现构建可删掉下面几行） ===
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
