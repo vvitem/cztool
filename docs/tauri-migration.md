@@ -25,6 +25,7 @@ npm run dev
 
 # Tauri（Phase 1：解锁/历史/工具箱 HTTP；规则中心尚未接通）
 CZTOOL_UNLOCK_SKIP=1 npm run dev:tauri
+# 前端固定端口 1420（避免与占用 5173 的其它 Vite 冲突）
 ```
 
 ## 约定

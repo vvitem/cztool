@@ -113,21 +113,23 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     plugins,
-    // Tauri 需要固定端口，且可从局域网外访问（false）
+    // Tauri 固定 1420，避免与 Electron / 其它 Vite（常占 5173）冲突
     clearScreen: false,
-    server: useElectron && process.env.VSCODE_DEBUG
-      ? (() => {
-          const url = new URL(pkg.debug.env.VITE_DEV_SERVER_URL)
-          return {
-            host: url.hostname,
-            port: +url.port,
-          }
-        })()
-      : {
+    server: !useElectron
+      ? {
           host: 'localhost',
-          port: 5173,
+          port: 1420,
           strictPort: true,
-        },
+        }
+      : process.env.VSCODE_DEBUG
+        ? (() => {
+            const url = new URL(pkg.debug.env.VITE_DEV_SERVER_URL)
+            return {
+              host: url.hostname,
+              port: +url.port,
+            }
+          })()
+        : undefined,
     envPrefix: ['VITE_', 'TAURI_'],
   }
 })
