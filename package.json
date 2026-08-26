@@ -9,8 +9,9 @@
   "scripts": {
     "dev": "tauri dev",
     "dev:web": "vite",
-    "build": "tauri build",
+    "build": "npm run build:web",
     "build:web": "vite build",
+    "build:tauri": "tauri build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
