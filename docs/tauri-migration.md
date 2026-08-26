@@ -20,10 +20,12 @@ CZTOOL_UNLOCK_SKIP=1 npm run dev
 # 仅前端（无 IPC）
 npm run dev:web
 
-# 打包
+# 打包（安装包；需签名密钥）
 export TAURI_SIGNING_PRIVATE_KEY_PATH="$PWD/src-tauri/.keys/cztool.key"
-npm run build
+npm run build:tauri
 ```
+
+> 说明：`npm run build` 仅构建前端（给 pre-push / CI 冒烟）；真正打桌面包用 `npm run build:tauri`。
 
 ## 发布
 
