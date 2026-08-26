@@ -12,16 +12,19 @@ const props = defineProps<{
 const content = computed(() => {
   try {
     const data = JSON.parse(props.record.content)
+    const phones: string[] = Array.isArray(data.phones) && data.phones.length
+      ? data.phones.map((item: unknown) => String(item)).filter(Boolean)
+      : (data.phone ? [String(data.phone)] : [])
     return {
       qq: data.qq || '',
       nickname: data.nickname || '',
       avatar: data.avatar || '',
-      phone: data.phone || '',
+      phone: phones[0] || '',
+      phones,
       phonediqu: data.phonediqu || '',
       lol: data.lol || null,
       wb: data.wb ? {
         ...data.wb,
-        // 提取ID中的数字部分
         id: String(data.wb.id).replace(/[^\d]/g, '')
       } : null
     }
@@ -31,6 +34,7 @@ const content = computed(() => {
       nickname: '',
       avatar: '',
       phone: '',
+      phones: [] as string[],
       phonediqu: '',
       lol: null,
       wb: null
@@ -155,16 +159,22 @@ const getStatusText = (status: string) => {
           </div>
         </div>
 
-        <div class="info-item" v-if="content.phone">
+        <div class="info-item" v-if="content.phones.length">
           <span class="info-label">手机号</span>
-          <div class="info-value-container">
-            <el-tag size="large" type="warning" class="value-tag">
-              <span>{{ content.phone }}</span>
+          <div class="info-value-container phone-list">
+            <el-tag
+              v-for="phone in content.phones"
+              :key="phone"
+              size="large"
+              type="warning"
+              class="value-tag"
+            >
+              <span>{{ phone }}</span>
               <el-button
                 class="copy-icon-btn"
                 type="primary"
                 link
-                @click.stop="copyWithTip(content.phone, '手机号')"
+                @click.stop="copyWithTip(phone, '手机号')"
               >
                 <el-icon><CopyDocument /></el-icon>
               </el-button>
@@ -342,6 +352,10 @@ const getStatusText = (status: string) => {
   align-items: center;
   gap: 8px;
   flex: 1;
+}
+
+.phone-list {
+  flex-wrap: wrap;
 }
 
 .value-tag {

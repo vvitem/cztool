@@ -1,6 +1,6 @@
 {
   "name": "cztool",
-  "version": "28.1.2",
+  "version": "28.2.0",
   "main": "dist-electron/main/index.js",
   "description": "Really simple Electron + Vue + Vite boilerplate.",
   "author": "ol",

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, Tray, Menu, dialog, MessageBoxOptions, Notification } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, Tray, Menu, dialog, MessageBoxOptions } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -7,11 +7,10 @@ import fs from 'node:fs/promises'
 import fetch from 'node-fetch'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
-import axios from 'axios'
-import https from 'https'
 import Database from 'better-sqlite3'
 import { v4 as uuidv4 } from 'uuid'
 import AutoLaunch from 'auto-launch'
+import { registerRulesIpc } from './rules'
 import { registerUpdateIpc, scheduleAutoUpdateCheck } from './update'
 
 const execAsync = promisify(exec)
@@ -183,6 +182,16 @@ ipcMain.handle('history:clear', async (_, id: number) => {
   } catch (error) {
     console.error('Failed to clear history:', error)
     throw new Error('清除历史记录失败')
+  }
+})
+
+ipcMain.handle('history:clear-all', async () => {
+  try {
+    const result = db.prepare('DELETE FROM history').run()
+    return { success: true, deleted: result.changes }
+  } catch (error) {
+    console.error('Failed to clear all history:', error)
+    throw new Error('清除全部历史记录失败')
   }
 })
 
@@ -844,38 +853,90 @@ ipcMain.handle('show-input', async (_, args) => {
   return null;
 })
 
-// Add notification handler
-ipcMain.handle('system:notification', async (_, { title, body }) => {
+// 解析主磁盘用量（本机侧栏）
+async function getPrimaryDiskUsage() {
   try {
-    const notification = new Notification({
-      title,
-      body,
-      icon: path.join(process.env.VITE_PUBLIC, 'icon.png')
-    })
-    notification.show()
-    return { success: true }
+    if (process.platform === 'win32') {
+      const { stdout } = await execAsync(
+        'wmic logicaldisk where "DeviceID=\'C:\'" get Size,FreeSpace /format:value'
+      )
+      const freeMatch = stdout.match(/FreeSpace=(\d+)/)
+      const sizeMatch = stdout.match(/Size=(\d+)/)
+      const free = Number(freeMatch?.[1] || 0)
+      const total = Number(sizeMatch?.[1] || 0)
+      if (!total) return null
+      return {
+        mount: 'C:',
+        total,
+        free,
+        used: Math.max(0, total - free),
+      }
+    }
+
+    // macOS / Linux：优先用户数据卷，再回退根分区
+    const targets =
+      process.platform === 'darwin'
+        ? ['/System/Volumes/Data', '/']
+        : ['/']
+
+    for (const target of targets) {
+      try {
+        const { stdout } = await execAsync(`df -kP "${target}"`)
+        const lines = stdout.trim().split('\n')
+        if (lines.length < 2) continue
+        const parts = lines[lines.length - 1].trim().split(/\s+/)
+        if (parts.length < 6) continue
+        const totalKb = Number(parts[1])
+        const usedKb = Number(parts[2])
+        const freeKb = Number(parts[3])
+        if (!totalKb) continue
+        return {
+          mount: parts[5] || target,
+          total: totalKb * 1024,
+          used: usedKb * 1024,
+          free: freeKb * 1024,
+        }
+      } catch {
+        // try next target
+      }
+    }
+    return null
   } catch (error) {
-    console.error('Notification error:', error)
-    return { success: false, error: error.message }
+    console.error('Failed to read disk usage:', error)
+    return null
+  }
+}
+
+// 本机信息（侧栏展示）
+ipcMain.handle('system:machine-info', async () => {
+  const totalMem = os.totalmem()
+  const freeMem = os.freemem()
+  const cpus = os.cpus()
+  const platformLabels: Record<string, string> = {
+    darwin: 'macOS',
+    win32: 'Windows',
+    linux: 'Linux',
+  }
+  const disk = await getPrimaryDiskUsage()
+
+  return {
+    hostname: os.hostname(),
+    username: os.userInfo().username,
+    platform: process.platform,
+    platformLabel: platformLabels[process.platform] || process.platform,
+    arch: os.arch(),
+    release: os.release(),
+    cpuModel: (cpus[0]?.model || '').replace(/\s+/g, ' ').trim(),
+    cpuCores: cpus.length,
+    totalMem,
+    freeMem,
+    usedMem: totalMem - freeMem,
+    disk,
   }
 })
 
-// Add shutdown handler
-ipcMain.handle('system:shutdown', async () => {
-  try {
-    if (process.platform === 'win32') {
-      await execAsync('shutdown /s /t 0')
-    } else if (process.platform === 'linux') {
-      await execAsync('shutdown -h now')
-    } else if (process.platform === 'darwin') {
-      await execAsync('sudo shutdown -h now')
-    }
-    return { success: true }
-  } catch (error) {
-    console.error('Shutdown error:', error)
-    return { success: false, error: error.message }
-  }
-})
+registerRulesIpc()
+registerUpdateIpc(() => win)
 
 // 自动启动相关处理
 const autoLauncher = new AutoLaunch({
@@ -907,31 +968,31 @@ ipcMain.handle('settings:set-auto-launch', async (_, enable: boolean) => {
   }
 })
 
-registerUpdateIpc(() => win)
-
-// 添加处理短链接生成的 IPC 处理程序
-ipcMain.handle('generate-short-url', async (_, url: string) => {
+// 抖音解析
+ipcMain.handle('douyin:parse', async (_event, url: string) => {
   try {
-    console.log('Generating short URL for:', url) // 打印原始URL
-    
-    const agent = new https.Agent({
-      rejectUnauthorized: false
+    const response = await fetch('https://dd.oihome.dpdns.org/api/parse', {
+      method: 'POST',
+      headers: {
+        accept: '*/*',
+        'content-type': 'application/json',
+        'x-grey-version': 'YBQ',
+        Referer: 'https://dd.oihome.dpdns.org/',
+      },
+      body: JSON.stringify({
+        url,
+        mobile: false,
+        timeout: 30,
+      }),
     })
 
-    const response = await axios.get('https://t.apii.cn/', {
-      params: { url },
-      httpsAgent: agent
-    })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
 
-    console.log('API Response:', response.data) // 打印API响应
-    return response.data
+    return await response.json()
   } catch (error) {
-    console.error('Error generating short URL:', error)
-    console.error('Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    }) // 打印详细错误信息
+    console.error('Error parsing douyin url:', error)
     throw error
   }
 })

@@ -1,12 +1,15 @@
 <template>
   <div class="settings">
-    <div class="settings-content">
+    <div class="settings-panel">
       <div class="setting-item">
         <div class="setting-copy">
           <div class="setting-label">开机启动</div>
+          <div class="setting-desc">登录系统后自动打开 CZTool</div>
         </div>
-        <n-switch v-model:value="autoLaunch" @update:value="handleAutoLaunchChange" />
+        <el-switch v-model="autoLaunch" @change="handleAutoLaunchChange" />
       </div>
+
+      <div class="setting-divider" />
 
       <div class="setting-item">
         <div class="setting-copy">
@@ -20,7 +23,7 @@
           <div class="setting-label">启动时自动检查更新</div>
           <div class="setting-desc">有新版本时后台下载，就绪后再提示</div>
         </div>
-        <n-switch v-model:value="autoCheck" @update:value="handleAutoCheckChange" />
+        <el-switch v-model="autoCheck" @change="handleAutoCheckChange" />
       </div>
 
       <div class="setting-item">
@@ -38,7 +41,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { NSwitch } from 'naive-ui'
 import { ElMessage } from 'element-plus'
 
 type UpdateStatus =
@@ -76,9 +78,9 @@ const loadUpdateSettings = async () => {
   }
 }
 
-const handleAutoLaunchChange = async (value: boolean) => {
+const handleAutoLaunchChange = async (value: string | number | boolean) => {
   try {
-    await window.ipcRenderer.invoke('settings:set-auto-launch', value)
+    await window.ipcRenderer.invoke('settings:set-auto-launch', Boolean(value))
     await getAutoLaunchStatus()
   } catch (error) {
     console.error('Failed to set auto launch:', error)
@@ -86,9 +88,9 @@ const handleAutoLaunchChange = async (value: boolean) => {
   }
 }
 
-const handleAutoCheckChange = async (value: boolean) => {
+const handleAutoCheckChange = async (value: string | number | boolean) => {
   try {
-    const s = await window.ipcRenderer.invoke('update:set-auto-check', value)
+    const s = await window.ipcRenderer.invoke('update:set-auto-check', Boolean(value))
     autoCheck.value = !!s?.autoCheck
   } catch (error) {
     ElMessage.error('保存失败')
@@ -147,10 +149,10 @@ onMounted(async () => {
     const manualToast = checking.value
     applyStatus(status, manualToast)
     if (
-      status.type === 'not-available' ||
-      status.type === 'error' ||
-      status.type === 'dev-skip' ||
-      status.type === 'downloaded'
+      status.type === 'not-available'
+      || status.type === 'error'
+      || status.type === 'dev-skip'
+      || status.type === 'downloaded'
     ) {
       checking.value = false
     }
@@ -162,44 +164,45 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style>
+<style scoped>
 .settings {
+  height: 100%;
   padding: 20px;
-  color: #333;
+  box-sizing: border-box;
 }
 
-.settings h2 {
-  color: #333;
-  margin-bottom: 20px;
-}
-
-.settings-content {
-  margin-top: 20px;
+.settings-panel {
+  max-width: 560px;
+  background: var(--cz-surface);
+  border: 1px solid var(--cz-border);
+  border-radius: var(--cz-radius-card);
+  box-shadow: var(--cz-shadow-sm);
+  padding: 8px 16px;
 }
 
 .setting-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
   gap: 16px;
+  padding: 14px 0;
 }
 
-.setting-copy {
-  flex: 1;
-  min-width: 0;
+.setting-divider {
+  height: 1px;
+  background: var(--cz-border);
+  margin: 4px 0;
 }
 
 .setting-label {
   font-size: 14px;
-  color: #333;
+  font-weight: 600;
+  color: var(--cz-text-primary);
 }
 
 .setting-desc {
-  margin-top: 4px;
+  margin-top: 2px;
   font-size: 12px;
-  color: #888;
-  line-height: 1.4;
+  color: var(--cz-text-tertiary);
 }
 </style>

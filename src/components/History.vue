@@ -1,206 +1,178 @@
 <template>
-  <div class="history-container">
-    <div class="history-content">
-      <el-table 
-        :data="historyList" 
-        style="width: 100%"
-        height="calc(100vh - 120px)"
-        :row-style="{ cursor: 'pointer' }"
-        @row-click="handleRowClick"
-        v-loading="loading"
-        :empty-text="loading ? '加载中...' : '暂无数据'"
-        :header-cell-style="{
-          background: 'var(--el-color-primary-light-9)',
-          color: 'var(--el-color-primary)',
-          fontWeight: 'bold'
-        }"
-        :cell-style="{
-          padding: '8px 0'
-        }"
-      >
-        <el-table-column 
-          prop="moduleName" 
-          label="模块" 
-          width="120" 
-          align="center"
-        >
-          <template #default="scope">
-            <el-tag
-              :type="getModuleType(scope.row.moduleName)"
-              effect="plain"
-              size="small"
-              class="module-tag"
-            >
-              {{ scope.row.moduleName }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="appName" 
-          label="应用" 
-          width="120" 
-          align="center"
-        >
-          <template #default="scope">
-            <span class="app-name">{{ scope.row.appName }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="content" 
-          label="内容"
-          min-width="300"
-        >
-          <template #default="scope">
-            <div class="content-cell">
-              <div v-if="scope.row.moduleName === '抖音去水印' && scope.row.status === 'success'">
-                {{ parseDouyinContent(scope.row.content) }}
-                <div class="link-tags" style="margin-top: 8px">
-                  <el-tag
-                    v-for="link in getDouyinLinks(scope.row.content)"
-                    :key="link.url"
-                    size="small"
-                    type="success"
-                    style="margin-right: 8px; cursor: pointer"
-                    @click.stop="openLink(link.url)"
-                  >
-                    {{ link.label }}
-                  </el-tag>
-                </div>
-              </div>
-              <div v-else-if="scope.row.moduleName === '短链生成'" class="shortlink-content">
-                <div class="link-row">
-                  <el-icon><Link /></el-icon>
-                  <el-tag 
-                    size="small" 
-                    type="success" 
-                    class="short-url" 
-                    style="cursor: pointer"
-                    @click.stop="openLink(parseContent(scope.row.content).shortUrl)"
-                  >
-                    {{ parseContent(scope.row.content).shortUrl }}
-                  </el-tag>
-                </div>
-                <div class="link-row original-url">
-                  <span class="arrow-icon">↳</span>
-                  <span 
-                    class="url-text" 
-                    style="cursor: pointer"
-                    @click.stop="openLink(parseContent(scope.row.content).originalUrl)"
-                  >
-                    {{ parseContent(scope.row.content).originalUrl }}
-                  </span>
-                </div>
-              </div>
-              <div v-else-if="scope.row.moduleName === 'share'" class="share-content">
-                <div v-if="scope.row.status === 'success'">
-                  <div class="share-info">
-                    <!-- 文件分享 -->
-                    <template v-if="isFileShare(scope.row)">
-                      <div class="file-info">
-                        <el-icon><Document /></el-icon>
-                        <span class="file-name">{{ parseContent(scope.row.content).sourceFileName }}</span>
-                      </div>
-                    </template>
-                    <!-- 文本分享 -->
-                    <template v-else>
-                      <div class="text-preview">
-                        <el-icon><ChatLineSquare /></el-icon>
-                        <span class="preview-text">{{ parseContent(scope.row.content).textPreview }}</span>
-                      </div>
-                    </template>
-                  </div>
-                  <div class="link-row">
-                    <el-icon><Link /></el-icon>
-                    <el-tag 
-                      size="small" 
-                      type="success" 
-                      class="share-url" 
-                      style="cursor: pointer"
-                      @click.stop="openLink(parseContent(scope.row.content).shareUrl)"
-                    >
-                      {{ parseContent(scope.row.content).shareUrl }}
-                    </el-tag>
-                  </div>
-                </div>
-                <div v-else class="error-content">
-                  <el-tag type="danger" effect="plain" size="small">
-                    {{ parseContent(scope.row.content).error || '分享失败' }}
-                  </el-tag>
-                </div>
-              </div>
-              <span v-else class="content-text">{{ formatContent(scope.row) }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="operationTime" 
-          label="时间"
-          width="200"
-          align="left"
-        >
-          <template #default="{ row }">
-            <div class="time-cell">
-              <el-icon><Clock /></el-icon>
-              <span>{{ formatDate(row.operationTime) }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="status" 
-          label="状态" 
-          width="100"
-          align="center"
-        >
-          <template #default="scope">
-            <el-tag
-              :type="getStatusType(scope.row.status)"
-              :effect="getStatusEffect(scope.row.status)"
-              size="small"
-              class="status-tag"
-            >
-              {{ getStatusText(scope.row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          fixed="right" 
-          label="操作" 
-          width="80"
-          align="center"
-        >
-          <template #default="scope">
-            <el-button
-              type="danger"
-              size="small"
-              @click.stop="clearHistory(scope.row)"
-              :icon="Delete"
-              circle
-            />
-          </template>
-        </el-table-column>
-      </el-table>
+  <div class="history-page">
+    <div class="history-panel">
+      <div class="history-toolbar">
+        <div class="toolbar-copy">
+          <div class="toolbar-title">操作历史</div>
+          <div class="toolbar-desc">点击行查看详情；可删除单条或清除全部记录</div>
+        </div>
+        <div class="toolbar-meta">
+          <span class="meta-chip">共 {{ total }} 条</span>
+          <el-button
+            class="clear-all-btn"
+            type="danger"
+            plain
+            size="small"
+            :icon="Delete"
+            :disabled="total === 0 || clearingAll"
+            :loading="clearingAll"
+            @click="clearAllHistory"
+          >
+            清除全部
+          </el-button>
+        </div>
+      </div>
 
-      <!-- 分页器 -->
-      <div class="pagination-container">
+      <div class="history-table-wrap" v-loading="loading">
+        <el-table
+          :data="historyList"
+          height="100%"
+          class="history-table"
+          :row-class-name="() => 'history-row'"
+          @row-click="handleRowClick"
+          :empty-text="loading ? '加载中...' : '暂无历史记录'"
+        >
+          <el-table-column prop="moduleName" label="模块" width="118" align="center">
+            <template #default="{ row }">
+              <span class="soft-tag" :class="'tone-' + getModuleTone(row.moduleName)">
+                {{ row.moduleName }}
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="appName" label="应用" width="100" align="center">
+            <template #default="{ row }">
+              <span class="app-name">{{ row.appName }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="content" label="内容" min-width="280">
+            <template #default="{ row }">
+              <div class="content-cell">
+                <template v-if="row.moduleName === '抖音去水印' && row.status === 'success'">
+                  <div class="content-summary">{{ parseDouyinContent(row.content) }}</div>
+                  <div class="chip-row">
+                    <button
+                      v-for="link in getDouyinLinks(row.content)"
+                      :key="link.url + link.label"
+                      type="button"
+                      class="link-chip"
+                      @click.stop="openLink(link.url)"
+                    >
+                      {{ link.label }}
+                    </button>
+                  </div>
+                </template>
+
+                <template v-else-if="row.moduleName === '短链生成'">
+                  <div class="shortlink-block">
+                    <button
+                      type="button"
+                      class="link-chip primary"
+                      @click.stop="openLink(parseContent(row.content).shortUrl)"
+                    >
+                      {{ parseContent(row.content).shortUrl || '—' }}
+                    </button>
+                    <div
+                      class="origin-line"
+                      @click.stop="openLink(parseContent(row.content).originalUrl)"
+                    >
+                      <span class="origin-arrow">↳</span>
+                      <span class="origin-url">{{ parseContent(row.content).originalUrl }}</span>
+                    </div>
+                  </div>
+                </template>
+
+                <template v-else-if="row.moduleName === 'share'">
+                  <div v-if="row.status === 'success'" class="share-block">
+                    <div class="share-title">
+                      <template v-if="isFileShare(row)">
+                        {{ parseContent(row.content).sourceFileName || '文件' }}
+                      </template>
+                      <template v-else>
+                        {{ parseContent(row.content).textPreview || '文本分享' }}
+                      </template>
+                    </div>
+                    <button
+                      type="button"
+                      class="link-chip primary"
+                      @click.stop="openLink(parseContent(row.content).shareUrl)"
+                    >
+                      {{ parseContent(row.content).shareUrl || '—' }}
+                    </button>
+                  </div>
+                  <span v-else class="error-text">
+                    {{ parseContent(row.content).error || '分享失败' }}
+                  </span>
+                </template>
+
+                <span v-else class="content-summary">{{ formatContent(row) }}</span>
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="operationTime" label="时间" width="168">
+            <template #default="{ row }">
+              <div class="time-cell">
+                <el-icon><Clock /></el-icon>
+                <span>{{ formatDate(row.operationTime) }}</span>
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="status" label="状态" width="92" align="center">
+            <template #default="{ row }">
+              <span class="soft-tag" :class="'status-' + row.status">
+                {{ getStatusText(row.status) }}
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column fixed="right" label="操作" width="72" align="center">
+            <template #default="{ row }">
+              <el-button
+                class="delete-btn"
+                text
+                type="danger"
+                :icon="Delete"
+                @click.stop="clearHistory(row)"
+              />
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-if="!loading && historyList.length === 0" class="empty-state">
+          <div class="empty-mark">
+            <el-icon><Clock /></el-icon>
+          </div>
+          <div class="empty-title">还没有历史记录</div>
+          <div class="empty-desc">使用工具箱完成操作后，结果会出现在这里</div>
+        </div>
+      </div>
+
+      <div class="pagination-bar">
+        <div class="pagination-summary">
+          共 <strong>{{ total }}</strong> 条记录
+        </div>
         <el-pagination
+          class="history-pagination"
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
           :page-sizes="[10, 20, 50, 100]"
           :total="total"
           :background="true"
-          layout="total, sizes, prev, pager, next"
-          :page-size-options="['10 条/页', '20 条/页', '50 条/页', '100 条/页']"
+          layout="sizes, prev, pager, next"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
         />
       </div>
     </div>
 
-    <!-- 详情对话框 -->
     <el-dialog
       v-model="dialogVisible"
       title="详细信息"
-      width="50%"
+      width="560px"
+      class="cz-tool-dialog"
       destroy-on-close
       align-center
     >
@@ -218,38 +190,32 @@
           <ShareDetail :record="selectedRow" />
         </template>
         <template v-else>
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="模块">
-              <el-tag
-                :type="getModuleType(selectedRow.moduleName)"
-                effect="plain"
-                size="small"
-              >
+          <div class="fallback-detail">
+            <div class="fallback-row">
+              <span class="fallback-label">模块</span>
+              <span class="soft-tag" :class="'tone-' + getModuleTone(selectedRow.moduleName)">
                 {{ selectedRow.moduleName }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="应用">
-              <span class="app-name">{{ selectedRow.appName }}</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="内容">
-              <pre>{{ selectedRow.content }}</pre>
-            </el-descriptions-item>
-            <el-descriptions-item label="时间">
-              <div class="time-cell">
-                <el-icon><Clock /></el-icon>
-                <span>{{ formatDate(selectedRow.operationTime) }}</span>
-              </div>
-            </el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag
-                :type="getStatusType(selectedRow.status)"
-                :effect="getStatusEffect(selectedRow.status)"
-                size="small"
-              >
+              </span>
+            </div>
+            <div class="fallback-row">
+              <span class="fallback-label">应用</span>
+              <span>{{ selectedRow.appName }}</span>
+            </div>
+            <div class="fallback-row">
+              <span class="fallback-label">状态</span>
+              <span class="soft-tag" :class="'status-' + selectedRow.status">
                 {{ getStatusText(selectedRow.status) }}
-              </el-tag>
-            </el-descriptions-item>
-          </el-descriptions>
+              </span>
+            </div>
+            <div class="fallback-row">
+              <span class="fallback-label">时间</span>
+              <span>{{ formatDate(selectedRow.operationTime) }}</span>
+            </div>
+            <div class="fallback-block">
+              <div class="fallback-label">内容</div>
+              <pre class="fallback-pre">{{ selectedRow.content }}</pre>
+            </div>
+          </div>
         </template>
       </div>
     </el-dialog>
@@ -258,13 +224,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import type { HistoryRecord } from '../types'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import DouyinDetail from './history/DouyinDetail.vue'
 import QQQueryDetail from './history/QQQueryDetail.vue'
 import ShortLinkDetail from './history/ShortLinkDetail.vue'
 import ShareDetail from './history/ShareDetail.vue'
-import { Clock, Delete, Link, CopyDocument, Trophy, Promotion } from '@element-plus/icons-vue'
+import { Clock, Delete } from '@element-plus/icons-vue'
 
 interface HistoryRecord {
   id: number
@@ -281,187 +246,171 @@ const historyList = ref<HistoryRecord[]>([])
 const dialogVisible = ref(false)
 const selectedRow = ref<HistoryRecord | null>(null)
 const loading = ref(false)
-
-// 分页相关
+const clearingAll = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 
-// 格式化日期
-const formatDate = (timestamp: number) => {
-  const date = new Date(timestamp)
-  return date.toLocaleString()
-}
+const formatDate = (timestamp: number) => new Date(timestamp).toLocaleString()
 
-// 获取模块类型
-const getModuleType = (moduleName: string) => {
-  const types = {
-    'QQ查询': 'primary',
-    '抖音解析': 'success',
-    '短链生成': 'warning'
+const getModuleTone = (moduleName: string) => {
+  const map: Record<string, string> = {
+    QQ查询: 'blue',
+    抖音去水印: 'cyan',
+    抖音解析: 'cyan',
+    短链生成: 'indigo',
+    share: 'green',
   }
-  return types[moduleName] || 'info'
+  return map[moduleName] || 'slate'
 }
 
-// 获取状态类型
-const getStatusType = (status: string) => {
-  const types = {
-    'success': 'success',
-    'error': 'danger',
-    'running': 'warning'
-  }
-  return types[status] || 'info'
-}
-
-// 获取状态效果
-const getStatusEffect = (status: string) => {
-  return status === 'running' ? 'light' : 'dark'
-}
-
-// 获取状态文本
 const getStatusText = (status: string) => {
-  const texts = {
-    'success': '成功',
-    'error': '失败',
-    'running': '运行中'
+  const texts: Record<string, string> = {
+    success: '成功',
+    error: '失败',
+    running: '运行中',
   }
   return texts[status] || '未知'
 }
 
-// 解析抖音视频历史记录内容
 const parseDouyinContent = (content: string) => {
   try {
     const data = JSON.parse(content)
     if (!data) return content
+    if (data.error) return `失败: ${data.error}`
 
-    const stats = data.statistics || {}
-    const basicInfo = [
-      `作者: ${data.author || '未知'}`,
-      `描述: ${data.desc || '无描述'}`,
-      `点赞: ${stats.digg || 0}`,
-      `评论: ${stats.comment || 0}`,
-      `收藏: ${stats.collect || 0}`,
-      `分享: ${stats.share || 0}`
-    ].join(' | ')
-
-    return basicInfo
-  } catch (error) {
+    const title = data.title || data.desc || '无标题'
+    const type = data.type ? ` · ${data.type}` : ''
+    return `${title}${type}`
+  } catch {
     return content
   }
 }
 
-// 获取抖音视频链接
 const getDouyinLinks = (content: string) => {
   try {
     const data = JSON.parse(content)
     if (!data) return []
 
-    const links = []
-    
-    // 添加视频链接
-    if (data.videoUrls && Array.isArray(data.videoUrls)) {
+    const links: Array<{ label: string; url: string }> = []
+    if (Array.isArray(data.videoUrls)) {
       data.videoUrls.forEach((item: any) => {
-        if (item && item.url && item.label) {
-          links.push({
-            label: `视频(${item.label})`,
-            url: item.url
-          })
+        if (item?.url && item?.label) {
+          links.push({ label: item.label, url: item.url })
         }
       })
+    } else if (data.defaultUrl) {
+      links.push({ label: '默认清晰度', url: data.defaultUrl })
     }
-
-    // 添加音频链接
     if (data.audioUrl) {
-      links.push({
-        label: '音频',
-        url: data.audioUrl
-      })
+      links.push({ label: '音频', url: data.audioUrl })
     }
-
     return links
-  } catch (error) {
+  } catch {
     return []
   }
 }
 
-// 打开链接
-const openLink = (url: string) => {
+const openLink = (url?: string) => {
+  if (!url) return
   window.open(url, '_blank')
 }
 
-// 处理行点击
 const handleRowClick = (row: HistoryRecord) => {
   selectedRow.value = row
   dialogVisible.value = true
 }
 
-// 获取历史记录
 const getHistoryList = async () => {
   loading.value = true
   try {
     const result = await window.ipcRenderer.invoke('history:list', {
       page: currentPage.value,
-      pageSize: pageSize.value
+      pageSize: pageSize.value,
     })
-    
+
     historyList.value = result.records
     total.value = result.pagination.total
-    
-    // 如果当前页没有数据且不是第一页，回到上一页
+
     if (result.records.length === 0 && currentPage.value > 1) {
       currentPage.value--
       await getHistoryList()
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to fetch history:', error)
-    ElMessage.error('获取历史记录失败：' + (error.message || '未知错误'))
+    ElMessage.error('获取历史记录失败：' + (error?.message || '未知错误'))
   } finally {
     loading.value = false
   }
 }
 
-// 清除历史记录
 const clearHistory = async (row: HistoryRecord) => {
   try {
     const success = await window.ipcRenderer.invoke('history:clear', row.id)
     if (success) {
       ElMessage.success('历史记录已清除')
-      // 如果当前页只有一条记录，删除后自动回到上一页
       if (historyList.value.length === 1 && currentPage.value > 1) {
         currentPage.value--
       }
       await getHistoryList()
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to clear history:', error)
-    ElMessage.error('清除历史记录失败：' + (error.message || '未知错误'))
+    ElMessage.error('清除历史记录失败：' + (error?.message || '未知错误'))
   }
 }
 
-// 处理每页条数变化
+const clearAllHistory = async () => {
+  if (total.value === 0) return
+
+  try {
+    await ElMessageBox.confirm(
+      `确定清除全部 ${total.value} 条历史记录吗？此操作不可恢复。`,
+      '清除全部记录',
+      {
+        confirmButtonText: '全部清除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+  } catch {
+    return
+  }
+
+  clearingAll.value = true
+  try {
+    await window.ipcRenderer.invoke('history:clear-all')
+    currentPage.value = 1
+    dialogVisible.value = false
+    selectedRow.value = null
+    ElMessage.success('已清除全部历史记录')
+    await getHistoryList()
+  } catch (error: any) {
+    console.error('Failed to clear all history:', error)
+    ElMessage.error('清除全部失败：' + (error?.message || '未知错误'))
+  } finally {
+    clearingAll.value = false
+  }
+}
+
 const handleSizeChange = (val: number) => {
   pageSize.value = val
-  currentPage.value = 1 // 重置到第一页
+  currentPage.value = 1
   getHistoryList()
 }
 
-// 处理页码变化
 const handleCurrentChange = (val: number) => {
   currentPage.value = val
   getHistoryList()
 }
 
-// 组件挂载时获取历史记录
 onMounted(() => {
   getHistoryList()
 })
 
-// 解析内容
 const parseContent = (content: string) => {
   try {
-    if (typeof content === 'string') {
-      return JSON.parse(content)
-    }
+    if (typeof content === 'string') return JSON.parse(content)
     return content
   } catch (e) {
     console.error('解析内容失败:', e)
@@ -469,177 +418,439 @@ const parseContent = (content: string) => {
   }
 }
 
-// 格式化内容
 const formatContent = (row: HistoryRecord) => {
   try {
     if (row.moduleName === 'QQ查询') {
       const data = JSON.parse(row.content)
       if (row.status === 'success') {
-        return `QQ: ${data.qq}${data.nickname ? ' | 昵称: ' + data.nickname : ''}${data.phonediqu ? ' | 归属地: ' + data.phonediqu : ''}`
-      } else {
-        return data.error || '查询失败'
+        const phones = Array.isArray(data.phones) && data.phones.length
+          ? data.phones.join('、')
+          : (data.phone || '')
+        return `QQ: ${data.qq}${data.nickname ? ' · ' + data.nickname : ''}${phones ? ' · ' + phones : ''}${data.phonediqu ? ' · ' + data.phonediqu : ''}`
       }
+      return data.error || '查询失败'
     }
     return row.content
-  } catch (e) {
+  } catch {
     return row.content
   }
 }
 
-// 判断是否为文件分享
 const isFileShare = (row: HistoryRecord) => {
   if (row.contentType) {
     return ['file-share', 'file'].includes(row.contentType)
   }
   return row.appName === '文件分享'
 }
-
-// 获取文件扩展名
-const getFileExtension = (row: HistoryRecord) => {
-  const fileName = parseContent(row.content).fileName
-  if (!fileName) return ''
-  const parts = fileName.split('.')
-  return parts.length > 1 ? parts[parts.length - 1] : ''
-}
-
-// 复制到剪贴板
-const copyToClipboard = (text: string) => {
-  if (!text) {
-    ElMessage.warning('没有可复制的内容')
-    return
-  }
-
-  try {
-    // 创建一个临时输入框
-    const input = document.createElement('input')
-    input.value = text
-    document.body.appendChild(input)
-    
-    // 选择文本
-    input.select()
-    input.setSelectionRange(0, input.value.length)
-    
-    // 尝试复制
-    const success = document.execCommand('copy')
-    
-    // 移除临时输入框
-    document.body.removeChild(input)
-    
-    if (success) {
-      ElMessage.success('复制成功')
-    } else {
-      ElMessage.error('复制失败')
-    }
-  } catch (error) {
-    console.error('复制失败:', error)
-    ElMessage.error('复制失败')
-  }
-}
 </script>
 
 <style scoped>
-.history-container {
+.history-page {
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 16px;
+  padding: 16px 20px;
   box-sizing: border-box;
 }
 
-.history-content {
-  background: var(--el-bg-color);
-  border-radius: 8px;
-  flex: 1;
+.history-panel {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  box-shadow: var(--el-box-shadow-light);
+  background: var(--cz-surface);
+  border: 1px solid var(--cz-border);
+  border-radius: var(--cz-radius-card);
+  box-shadow: var(--cz-shadow-sm);
+  overflow: hidden;
 }
 
-.el-table {
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--cz-border);
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.9), rgba(255, 255, 255, 0.55));
+}
+
+.toolbar-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--cz-text-primary);
+}
+
+.toolbar-desc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--cz-text-tertiary);
+}
+
+.toolbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.meta-chip,
+.clear-all-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  box-sizing: border-box;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cz-primary-hover);
+  background: var(--cz-primary-soft);
+  border: 1px solid rgba(59, 130, 246, 0.12);
+  line-height: 1;
+}
+
+.clear-all-btn {
+  margin: 0;
+}
+
+:deep(.clear-all-btn.el-button) {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+:deep(.clear-all-btn.el-button .el-icon) {
+  font-size: 12px;
+}
+
+.history-table-wrap {
+  position: relative;
   flex: 1;
+  min-height: 0;
+  padding: 0;
 }
 
-:deep(.el-table__cell) {
-  padding: 8px !important;
+.history-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: transparent;
+  --el-table-row-hover-bg-color: var(--cz-primary-soft);
+  --el-table-border-color: var(--cz-border);
+  --el-table-text-color: var(--cz-text-secondary);
+  --el-table-header-text-color: var(--cz-text-tertiary);
 }
 
-:deep(.el-table .cell) {
-  padding: 0 8px;
-  line-height: 1.5;
+:deep(.history-table .el-table__header th) {
+  font-weight: 600;
+  font-size: 12px;
+  background: transparent !important;
+}
+
+:deep(.history-table .el-table__row.history-row) {
+  cursor: pointer;
+  transition: background-color var(--cz-transition);
+}
+
+:deep(.history-table .el-table__cell) {
+  padding: 12px 0 !important;
+  border-bottom-color: var(--cz-border) !important;
+}
+
+:deep(.history-table .cell) {
+  padding: 0 16px;
+  line-height: 1.45;
+}
+
+:deep(.history-table .el-table__empty-block) {
+  display: none;
+}
+
+.soft-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.tone-blue {
+  color: #2563eb;
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.14);
+}
+
+.tone-cyan {
+  color: #0284c7;
+  background: rgba(14, 165, 233, 0.1);
+  border-color: rgba(14, 165, 233, 0.14);
+}
+
+.tone-indigo {
+  color: #4f46e5;
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.14);
+}
+
+.tone-green {
+  color: #16a34a;
+  background: var(--cz-success-soft);
+  border-color: rgba(34, 197, 94, 0.16);
+}
+
+.tone-slate {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.status-success {
+  color: #16a34a;
+  background: var(--cz-success-soft);
+  border-color: rgba(34, 197, 94, 0.16);
+}
+
+.status-error {
+  color: #dc2626;
+  background: var(--cz-danger-soft);
+  border-color: rgba(239, 68, 68, 0.16);
+}
+
+.status-running {
+  color: #d97706;
+  background: var(--cz-warning-soft);
+  border-color: rgba(245, 158, 11, 0.18);
+}
+
+.app-name {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--cz-text-primary);
 }
 
 .content-cell {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  word-break: break-all;
-  line-height: 1.5;
-  color: var(--el-text-color-regular);
-}
-
-.content-cell .share-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
-.content-cell .share-content .link-row {
+.content-summary {
+  font-size: 13px;
+  color: var(--cz-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.chip-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.content-cell .share-content .file-info,
-.content-cell .share-content .text-preview {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--el-text-color-secondary);
-  font-size: 0.9em;
-}
-
-.content-cell .share-content .file-info .el-icon,
-.content-cell .share-content .text-preview .el-icon {
-  font-size: 16px;
-}
-
-.content-cell .share-content .text-preview {
+.link-chip {
+  max-width: 220px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.16);
+  background: var(--cz-success-soft);
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 300px;
+  transition: border-color var(--cz-transition), background-color var(--cz-transition);
 }
 
-.content-cell .share-content .error-content {
-  margin-top: 4px;
+.link-chip.primary {
+  border-color: rgba(59, 130, 246, 0.16);
+  background: var(--cz-primary-soft);
+  color: var(--cz-primary-hover);
+}
+
+.link-chip:hover {
+  border-color: var(--cz-border-strong);
+}
+
+.shortlink-block,
+.share-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.share-title {
+  font-size: 13px;
+  color: var(--cz-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.origin-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.origin-arrow {
+  color: var(--cz-text-tertiary);
+  flex-shrink: 0;
+}
+
+.origin-url {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--cz-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.origin-url:hover {
+  text-decoration: underline;
+}
+
+.error-text {
+  font-size: 13px;
+  color: #dc2626;
 }
 
 .time-cell {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: var(--el-text-color-secondary);
-  font-size: var(--el-font-size-small);
+  gap: 6px;
+  font-size: 12px;
+  color: var(--cz-text-tertiary);
 }
 
-.pagination-container {
-  padding: 16px;
+.delete-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.delete-btn:hover {
+  background: var(--cz-danger-soft);
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
   display: flex;
-  justify-content: flex-end;
-  background: var(--el-bg-color);
-  border-top: 1px solid var(--el-border-color-lighter);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
 }
 
-:deep(.el-pagination) {
-  justify-content: flex-end;
-  --el-pagination-font-size: var(--el-font-size-small);
+.empty-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--cz-primary);
+  background: var(--cz-primary-soft);
+  margin-bottom: 4px;
 }
 
-:deep(.el-pagination .el-select .el-input) {
-  width: 110px;
+.empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cz-text-primary);
+}
+
+.empty-desc {
+  font-size: 12px;
+  color: var(--cz-text-tertiary);
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-top: 1px solid var(--cz-border);
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.88), var(--cz-surface-secondary));
+}
+
+.pagination-summary {
+  font-size: 12px;
+  color: var(--cz-text-tertiary);
+  white-space: nowrap;
+}
+
+.pagination-summary strong {
+  margin: 0 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cz-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-pagination {
+  margin-left: auto;
+  --el-pagination-font-size: 12px;
+  --el-pagination-button-bg-color: var(--cz-surface);
+  --el-pagination-hover-color: var(--cz-primary);
+  --el-pagination-button-color: var(--cz-text-secondary);
+}
+
+:deep(.history-pagination .el-pagination__sizes) {
+  margin-right: 10px;
+}
+
+:deep(.history-pagination .el-select) {
+  width: 118px;
+}
+
+:deep(.history-pagination .el-select .el-select__wrapper) {
+  min-height: 30px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--cz-border) inset;
+  background: var(--cz-surface);
+}
+
+:deep(.history-pagination .el-select .el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--cz-border-strong) inset;
+}
+
+:deep(.history-pagination .el-pager li) {
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+:deep(.history-pagination .btn-prev),
+:deep(.history-pagination .btn-next) {
+  border-radius: 8px;
+}
+
+:deep(.history-pagination.is-background .el-pager li.is-active) {
+  background: var(--cz-primary);
 }
 
 .detail-content {
@@ -647,93 +858,49 @@ const copyToClipboard = (text: string) => {
   overflow-y: auto;
 }
 
-.shortlink-content {
+.fallback-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fallback-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--cz-text-secondary);
+}
+
+.fallback-label {
+  width: 42px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--cz-text-tertiary);
+}
+
+.fallback-block {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.link-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0;
+.fallback-pre {
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--cz-surface-tertiary);
+  border: 1px solid var(--cz-border);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  color: var(--cz-text-secondary);
 }
 
-.short-url {
-  padding: 4px 8px;
-}
-
-.original-url {
-  color: var(--el-text-color-secondary);
-}
-
-.url-text {
-  color: var(--el-color-primary);
-  font-family: monospace;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.url-text:hover {
-  color: var(--el-color-primary-light-3);
-}
-
-.arrow-icon {
-  color: var(--el-text-color-secondary);
-  font-weight: bold;
-}
-
-.link-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.share-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.file-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.file-name {
-  color: var(--el-text-color-primary);
-}
-
-.text-preview {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.preview-text {
-  color: var(--el-text-color-regular);
-}
-
-.link-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.share-url {
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 暗色主题适配 */
-:root[theme-mode="dark"] .history-content {
-  background: var(--el-bg-color-overlay);
+@media (prefers-reduced-motion: reduce) {
+  :deep(.history-table .el-table__row.history-row),
+  .link-chip {
+    transition: none;
+  }
 }
 </style>

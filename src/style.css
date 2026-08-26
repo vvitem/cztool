@@ -29,7 +29,33 @@
   --cz-radius-sm: 12px;
   --cz-radius-md: 18px;
   --cz-radius-lg: 24px;
+  --cz-radius-tile: 12px;
+  --cz-radius-card: 16px;
   --cz-transition: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --el-color-primary: var(--cz-primary);
+  --el-color-primary-light-3: #93c5fd;
+  --el-color-primary-light-5: #bfdbfe;
+  --el-color-primary-light-7: #dbeafe;
+  --el-color-primary-light-8: #eff6ff;
+  --el-color-primary-light-9: var(--cz-primary-soft);
+  --el-color-primary-dark-2: var(--cz-primary-hover);
+  /* 页面壳层透明透出渐变；浮层/弹窗用实色表面，避免内容透底 */
+  --el-bg-color: var(--cz-surface);
+  --el-bg-color-page: transparent;
+  --el-bg-color-overlay: var(--cz-surface);
+  --el-dialog-bg-color: var(--cz-surface);
+  --el-messagebox-bg-color: var(--cz-surface);
+  --el-text-color-primary: var(--cz-text-primary);
+  --el-text-color-regular: var(--cz-text-secondary);
+  --el-text-color-secondary: var(--cz-text-tertiary);
+  --el-border-color: var(--cz-border);
+  --el-border-color-light: var(--cz-border);
+  --el-border-color-lighter: var(--cz-border);
+  --el-border-radius-base: 10px;
+  --el-border-radius-small: 8px;
+  --el-box-shadow: var(--cz-shadow-sm);
+  --el-box-shadow-light: var(--cz-shadow-sm);
 }
 
 html,
@@ -104,4 +130,196 @@ select {
 :focus-visible {
   outline: 2px solid rgba(59, 130, 246, 0.35);
   outline-offset: 2px;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--cz-primary);
+  --el-button-border-color: var(--cz-primary);
+  --el-button-hover-bg-color: var(--cz-primary-hover);
+  --el-button-hover-border-color: var(--cz-primary-hover);
+}
+
+.el-dialog,
+.el-message-box {
+  --el-dialog-bg-color: var(--cz-surface);
+  background: var(--cz-surface) !important;
+  background-color: var(--cz-surface) !important;
+  border-radius: var(--cz-radius-card) !important;
+  box-shadow: var(--cz-shadow-md) !important;
+  border: 1px solid var(--cz-border);
+  overflow: hidden;
+}
+
+.el-dialog__header {
+  padding: 16px 20px !important;
+  margin-right: 0 !important;
+  border-bottom: 1px solid var(--cz-border);
+}
+
+.el-dialog__title {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--cz-text-primary) !important;
+}
+
+.el-dialog__body {
+  padding: 16px 20px 20px !important;
+  color: var(--cz-text-primary);
+}
+
+.el-dialog__headerbtn {
+  top: 16px !important;
+  right: 16px !important;
+  width: 28px;
+  height: 28px;
+}
+
+.el-dialog__headerbtn .el-dialog__close {
+  color: var(--cz-text-tertiary);
+  font-size: 16px;
+}
+
+.el-dialog__headerbtn:hover .el-dialog__close {
+  color: var(--cz-primary);
+}
+
+/* 弹窗内容统一骨架 */
+.cz-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cz-dialog-panel {
+  padding: 14px 16px;
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-surface-secondary);
+  border: 1px solid var(--cz-border);
+}
+
+.cz-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cz-border);
+}
+
+.cz-dialog-tip {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--cz-text-tertiary);
+}
+
+.el-dialog .el-form-item {
+  margin-bottom: 14px;
+}
+
+.el-dialog .el-form-item:last-child {
+  margin-bottom: 0;
+}
+
+.el-dialog .el-form-item__label {
+  font-weight: 500;
+  color: var(--cz-text-secondary);
+}
+
+.el-dialog .el-input__wrapper,
+.el-dialog .el-textarea__inner,
+.el-dialog .el-select__wrapper {
+  border-radius: 10px;
+}
+
+.el-dialog .el-alert {
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-primary-soft);
+  border: 1px solid var(--cz-border-strong);
+  color: var(--cz-text-secondary);
+}
+
+.el-dialog .el-alert .el-alert__title {
+  font-size: 13px;
+  color: var(--cz-text-secondary);
+}
+
+.el-dialog .el-upload {
+  width: 100%;
+}
+
+.el-dialog .el-upload-dragger {
+  width: 100%;
+  padding: 28px 16px;
+  border-radius: var(--cz-radius-sm);
+  border: 1px dashed var(--cz-border-strong);
+  background: var(--cz-surface-secondary);
+  transition:
+    border-color var(--cz-transition),
+    background-color var(--cz-transition);
+}
+
+.el-dialog .el-upload-dragger:hover {
+  border-color: var(--cz-primary);
+  background: var(--cz-primary-soft);
+}
+
+.el-dialog .el-upload-dragger .el-icon--upload {
+  font-size: 40px;
+  color: var(--cz-primary);
+  margin-bottom: 8px;
+}
+
+.el-dialog .el-upload__text {
+  color: var(--cz-text-secondary);
+  font-size: 13px;
+}
+
+.el-dialog .el-upload__text em {
+  color: var(--cz-primary);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.el-dialog .el-upload__tip {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--cz-text-tertiary);
+}
+
+.el-dialog .el-radio {
+  margin-right: 18px;
+  height: auto;
+}
+
+.el-dialog .el-descriptions {
+  border-radius: var(--cz-radius-sm);
+  overflow: hidden;
+}
+
+.el-dialog .el-descriptions__label {
+  background: var(--cz-surface-tertiary) !important;
+  color: var(--cz-text-secondary) !important;
+}
+
+.el-tag {
+  border-radius: 999px;
+}
+
+.el-pagination {
+  --el-pagination-button-bg-color: var(--cz-surface);
+  justify-content: flex-end;
+  padding: 12px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
