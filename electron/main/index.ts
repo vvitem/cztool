@@ -216,9 +216,9 @@ async function createWindow() {
   win = new BrowserWindow({
     title: 'CZTool',
     icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
-    minWidth: 1000,
+    minWidth: 1400,
     minHeight: 800,
-    width: 1000,
+    width: 1400,
     height: 800,
     show: false,
     skipTaskbar: false,

@@ -1,4 +1,4 @@
-export type ToolId = 'cursor' | 'claude' | 'codex' | 'trae' | 'qoder'
+export type ToolId = 'cursor' | 'claude' | 'codex' | 'trae' | 'qoder' | 'workspace'
 export type AssetKind = 'rule' | 'skill' | 'agent' | 'prompt' | 'other'
 
 export interface RuleAsset {

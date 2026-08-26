@@ -2,7 +2,7 @@ import path from 'node:path'
 import os from 'node:os'
 import crypto from 'node:crypto'
 
-export type ToolId = 'cursor' | 'claude' | 'codex' | 'trae' | 'qoder'
+export type ToolId = 'cursor' | 'claude' | 'codex' | 'trae' | 'qoder' | 'workspace'
 export type AssetKind = 'rule' | 'skill' | 'agent' | 'prompt' | 'other'
 
 export interface RuleAsset {
@@ -118,4 +118,5 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   codex: 'Codex',
   trae: 'Trae',
   qoder: 'Qoder',
+  workspace: '当前项目',
 }
