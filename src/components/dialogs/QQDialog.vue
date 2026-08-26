@@ -59,6 +59,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
+import { invoke } from '../../api/desktop'
 
 interface QQResult {
   qq?: string
@@ -77,7 +78,7 @@ const result = ref<QQResult | null>(null)
 
 const getNickname = async (qq: string): Promise<string | undefined> => {
   try {
-    const response = await window.ipcRenderer.invoke('fetch-qq-nickname', qq)
+    const response = await invoke('fetch-qq-nickname', qq)
     if (response && response.code === 200) {
       return response.qqnicheng
     }
@@ -135,7 +136,7 @@ const handleSubmit = async () => {
     ElMessage.success('查询成功')
 
     try {
-      await window.ipcRenderer.invoke('history:add', {
+      await invoke('history:add', {
         moduleName: 'QQ查询',
         appName: 'QQ',
         content: JSON.stringify({
@@ -156,7 +157,7 @@ const handleSubmit = async () => {
     ElMessage.error(error instanceof Error ? error.message : '查询失败，请稍后重试')
 
     try {
-      await window.ipcRenderer.invoke('history:add', {
+      await invoke('history:add', {
         moduleName: 'QQ查询',
         appName: 'QQ',
         content: `查询失败: ${searchInput.value} (${error instanceof Error ? error.message : '未知错误'})`,

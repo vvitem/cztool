@@ -42,6 +42,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
+import { invoke, on } from '../api/desktop'
 
 type UpdateStatus =
   | { type: 'checking' }
@@ -61,7 +62,7 @@ let offStatus: (() => void) | undefined
 
 const getAutoLaunchStatus = async () => {
   try {
-    const isEnabled = await window.ipcRenderer.invoke('settings:get-auto-launch')
+    const isEnabled = await invoke('settings:get-auto-launch')
     autoLaunch.value = isEnabled
   } catch (error) {
     console.error('Failed to get auto launch status:', error)
@@ -70,8 +71,8 @@ const getAutoLaunchStatus = async () => {
 
 const loadUpdateSettings = async () => {
   try {
-    appVersion.value = await window.ipcRenderer.invoke('update:get-version')
-    const s = await window.ipcRenderer.invoke('update:get-settings')
+    appVersion.value = await invoke('update:get-version')
+    const s = await invoke('update:get-settings')
     autoCheck.value = !!s?.autoCheck
   } catch (error) {
     console.error(error)
@@ -80,7 +81,7 @@ const loadUpdateSettings = async () => {
 
 const handleAutoLaunchChange = async (value: string | number | boolean) => {
   try {
-    await window.ipcRenderer.invoke('settings:set-auto-launch', Boolean(value))
+    await invoke('settings:set-auto-launch', Boolean(value))
     await getAutoLaunchStatus()
   } catch (error) {
     console.error('Failed to set auto launch:', error)
@@ -90,7 +91,7 @@ const handleAutoLaunchChange = async (value: string | number | boolean) => {
 
 const handleAutoCheckChange = async (value: string | number | boolean) => {
   try {
-    const s = await window.ipcRenderer.invoke('update:set-auto-check', Boolean(value))
+    const s = await invoke('update:set-auto-check', Boolean(value))
     autoCheck.value = !!s?.autoCheck
   } catch (error) {
     ElMessage.error('保存失败')
@@ -137,7 +138,7 @@ const handleCheckUpdate = async () => {
   checking.value = true
   statusText.value = '正在检查…'
   try {
-    await window.ipcRenderer.invoke('update:check')
+    await invoke('update:check')
   } catch (error: any) {
     checking.value = false
     const msg = String(error?.message || '检查失败').slice(0, 80)
@@ -149,7 +150,7 @@ const handleCheckUpdate = async () => {
 onMounted(async () => {
   await getAutoLaunchStatus()
   await loadUpdateSettings()
-  offStatus = window.ipcRenderer.on('update:status', (status: UpdateStatus) => {
+  offStatus = on('update:status', (status: UpdateStatus) => {
     const manualToast = checking.value
     applyStatus(status, manualToast)
     if (

@@ -25,6 +25,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Minus, FullScreen, Close } from '@element-plus/icons-vue'
+import { invoke, send } from '../api/desktop'
 
 withDefaults(defineProps<{
   /** sidebar = 侧栏顶栏；title = 内容顶栏；overlay = 解锁页等 */
@@ -43,7 +44,7 @@ const isMac = computed(() => {
 
 onMounted(async () => {
   try {
-    const info = await window.ipcRenderer.invoke('system:machine-info')
+    const info = await invoke<{ platform?: string }>('system:machine-info')
     if (info?.platform === 'darwin' || info?.platform === 'win32' || info?.platform === 'linux') {
       platform.value = info.platform
     }
@@ -52,9 +53,9 @@ onMounted(async () => {
   }
 })
 
-const emitMinimize = () => window.ipcRenderer.send('minimize-window')
-const emitMaximize = () => window.ipcRenderer.send('maximize-window')
-const emitClose = () => window.ipcRenderer.send('close-window')
+const emitMinimize = () => send('minimize-window')
+const emitMaximize = () => send('maximize-window')
+const emitClose = () => send('close-window')
 </script>
 
 <style scoped>

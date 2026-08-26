@@ -118,6 +118,7 @@ import Settings from './components/Settings.vue'
 import RulesCenter from './components/RulesCenter.vue'
 import UnlockGate from './components/UnlockGate.vue'
 import WindowControls from './components/WindowControls.vue'
+import { invoke, on } from './api/desktop'
 
 const SIDEBAR = {
   MIN_WIDTH: 200,
@@ -212,7 +213,7 @@ const formatBytes = (bytes: number) => {
 
 const loadMachineInfo = async () => {
   try {
-    machineInfo.value = await window.ipcRenderer.invoke('system:machine-info')
+    machineInfo.value = await invoke('system:machine-info')
   } catch (error) {
     console.error('Failed to load machine info:', error)
   }
@@ -252,7 +253,7 @@ let offUpdateStatus: (() => void) | undefined
 const startAppServices = () => {
   loadMachineInfo()
   machineInfoTimer = setInterval(loadMachineInfo, 15000)
-  offUpdateStatus = window.ipcRenderer.on('update:status', handleUpdateStatus) as unknown as () => void
+  offUpdateStatus = on('update:status', handleUpdateStatus) as unknown as () => void
 }
 
 const onUnlocked = () => {
@@ -276,7 +277,7 @@ const handleUpdateStatus = async (status: { type: string; version?: string; mess
         distinguishCancelAndClose: true,
       },
     )
-    await window.ipcRenderer.invoke('update:quit-and-install')
+    await invoke('update:quit-and-install')
   } catch {
     // 稍后 / 关闭：依赖 autoInstallOnAppQuit
   }
@@ -284,7 +285,7 @@ const handleUpdateStatus = async (status: { type: string; version?: string; mess
 
 onMounted(async () => {
   try {
-    const status = await window.ipcRenderer.invoke('unlock:get-status')
+    const status = await invoke('unlock:get-status')
     locked.value = !!status?.locked
   } catch {
     locked.value = true

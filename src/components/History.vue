@@ -230,6 +230,7 @@ import QQQueryDetail from './history/QQQueryDetail.vue'
 import ShortLinkDetail from './history/ShortLinkDetail.vue'
 import ShareDetail from './history/ShareDetail.vue'
 import { Clock, Delete } from '@element-plus/icons-vue'
+import { invoke } from '../api/desktop'
 
 interface HistoryRecord {
   id: number
@@ -324,7 +325,7 @@ const handleRowClick = (row: HistoryRecord) => {
 const getHistoryList = async () => {
   loading.value = true
   try {
-    const result = await window.ipcRenderer.invoke('history:list', {
+    const result = await invoke('history:list', {
       page: currentPage.value,
       pageSize: pageSize.value,
     })
@@ -346,7 +347,7 @@ const getHistoryList = async () => {
 
 const clearHistory = async (row: HistoryRecord) => {
   try {
-    const success = await window.ipcRenderer.invoke('history:clear', row.id)
+    const success = await invoke('history:clear', row.id)
     if (success) {
       ElMessage.success('历史记录已清除')
       if (historyList.value.length === 1 && currentPage.value > 1) {
@@ -379,7 +380,7 @@ const clearAllHistory = async () => {
 
   clearingAll.value = true
   try {
-    await window.ipcRenderer.invoke('history:clear-all')
+    await invoke('history:clear-all')
     currentPage.value = 1
     dialogVisible.value = false
     selectedRow.value = null

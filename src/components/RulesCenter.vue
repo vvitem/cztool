@@ -632,6 +632,7 @@ import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch, nextTick,
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { compareAssets, type RuleAsset, type ToolId, type AssetKind, type CompareGroup } from '../utils/rulesCompare'
 import VirtualList from './VirtualList.vue'
+import { invoke } from '../api/desktop'
 
 interface ToolSummary {
   toolId: ToolId
@@ -977,7 +978,7 @@ const healthPreviewAsset = computed(() =>
 const openAssetByAbsPath = async (absPath?: string) => {
   if (!absPath) return
   try {
-    await window.ipcRenderer.invoke('rules:open', absPath)
+    await invoke('rules:open', absPath)
   } catch (error: any) {
     ElMessage.error('无法打开文件：' + (error?.message || '未知错误'))
   }
@@ -1005,10 +1006,10 @@ const loadHealthCompareContents = async () => {
     const right = healthDetail.value.assets.find((a) => a.id === healthSideRightId.value)
     const [l, r] = await Promise.all([
       left
-        ? window.ipcRenderer.invoke('rules:read', left.absPath)
+        ? invoke('rules:read', left.absPath)
         : Promise.resolve({ content: '' }),
       right
-        ? window.ipcRenderer.invoke('rules:read', right.absPath)
+        ? invoke('rules:read', right.absPath)
         : Promise.resolve({ content: '' }),
     ])
     if (seq !== healthContentSeq) return
@@ -1032,7 +1033,7 @@ const loadHealthPreviewContent = async () => {
   }
   healthDetailLoading.value = true
   try {
-    const data = await window.ipcRenderer.invoke('rules:read', asset.absPath)
+    const data = await invoke('rules:read', asset.absPath)
     if (seq !== healthContentSeq) return
     healthPreviewText.value = data.content || ''
   } catch (error: any) {
@@ -1248,7 +1249,7 @@ const confirmDiscardIfDirty = async () => {
 const loadHealth = async (nextTools: ToolSummary[], nextAssets: RuleAsset[]) => {
   try {
     // 避免把 Vue Proxy 经 IPC structuredClone
-    health.value = await window.ipcRenderer.invoke('rules:health', {
+    health.value = await invoke('rules:health', {
       tools: nextTools.map((t) => ({ ...toRaw(t), counts: { ...toRaw(t).counts } })),
       assets: nextAssets.map((a) => ({ ...toRaw(a) })),
     })
@@ -1338,10 +1339,10 @@ const refresh = async () => {
         markDerivedDirty()
         return
       }
-      const result = await window.ipcRenderer.invoke('rules:scan-project', projectRoot.value)
+      const result = await invoke('rules:scan-project', projectRoot.value)
       await applyScanResult(result)
     } else {
-      const result = await window.ipcRenderer.invoke('rules:scan')
+      const result = await invoke('rules:scan')
       await applyScanResult(result)
     }
   } catch (error: any) {
@@ -1368,7 +1369,7 @@ const setScope = async (mode: ScopeMode) => {
 const pickProject = async () => {
   if (!(await confirmDiscardIfDirty())) return
   try {
-    const result = await window.ipcRenderer.invoke('rules:pick-project')
+    const result = await invoke('rules:pick-project')
     if (result?.canceled) return
     projectRoot.value = result.projectRoot || null
     scopeMode.value = 'project'
@@ -1386,7 +1387,7 @@ const pickProject = async () => {
 const clearProject = async () => {
   if (!(await confirmDiscardIfDirty())) return
   try {
-    await window.ipcRenderer.invoke('rules:clear-project')
+    await invoke('rules:clear-project')
     projectRoot.value = null
     scopeMode.value = 'global'
     resetEditState()
@@ -1400,7 +1401,7 @@ const clearProject = async () => {
 const loadPreview = async (asset: RuleAsset, options?: { full?: boolean }) => {
   previewLoading.value = true
   try {
-    const data = await window.ipcRenderer.invoke('rules:read', asset.absPath, options)
+    const data = await invoke('rules:read', asset.absPath, options)
     previewText.value = data.content || ''
     previewTruncated.value = !!data.truncated
     return data
@@ -1476,10 +1477,10 @@ const loadSideContents = async () => {
     const right = compareFocus.value.assets.find((a) => a.id === sideRightId.value)
     const [l, r] = await Promise.all([
       left
-        ? window.ipcRenderer.invoke('rules:read', left.absPath)
+        ? invoke('rules:read', left.absPath)
         : Promise.resolve({ content: '' }),
       right
-        ? window.ipcRenderer.invoke('rules:read', right.absPath)
+        ? invoke('rules:read', right.absPath)
         : Promise.resolve({ content: '' }),
     ])
     if (seq !== compareContentSeq) return
@@ -1540,7 +1541,7 @@ const saveEdit = async () => {
   if (!selected.value || !isDirty.value || saving.value) return
   saving.value = true
   try {
-    await window.ipcRenderer.invoke('rules:write', selected.value.absPath, editText.value)
+    await invoke('rules:write', selected.value.absPath, editText.value)
     savedText.value = editText.value
     previewText.value = editText.value
     previewTruncated.value = false
@@ -1582,7 +1583,7 @@ const onEditorKeydown = (e: KeyboardEvent) => {
 const revealSelected = async () => {
   if (!selected.value) return
   try {
-    await window.ipcRenderer.invoke('rules:reveal', selected.value.absPath)
+    await invoke('rules:reveal', selected.value.absPath)
   } catch (error: any) {
     ElMessage.error(error?.message || '无法在访达中显示')
   }
@@ -1591,7 +1592,7 @@ const revealSelected = async () => {
 const openSelected = async () => {
   if (!selected.value) return
   try {
-    await window.ipcRenderer.invoke('rules:open', selected.value.absPath)
+    await invoke('rules:open', selected.value.absPath)
   } catch (error: any) {
     ElMessage.error(error?.message || '无法打开文件')
   }
@@ -1614,7 +1615,7 @@ const submitCreate = async () => {
   }
   creating.value = true
   try {
-    const asset = await window.ipcRenderer.invoke('rules:create', {
+    const asset = await invoke('rules:create', {
       toolId: createForm.value.toolId,
       template: createForm.value.template,
       slug: createForm.value.slug.trim() || undefined,
@@ -1665,7 +1666,7 @@ const submitSync = async () => {
   syncing.value = true
   try {
     const src = syncSource.value
-    const results = await window.ipcRenderer.invoke('rules:sync', {
+    const results = await invoke('rules:sync', {
       sourceAbsPath: src.absPath,
       sourceToolId: src.toolId,
       sourceKind: src.kind,
@@ -1708,7 +1709,7 @@ const stopResize = () => {
 
 onMounted(async () => {
   try {
-    const proj = await window.ipcRenderer.invoke('rules:get-project')
+    const proj = await invoke('rules:get-project')
     projectRoot.value = proj?.projectRoot || null
   } catch {
     projectRoot.value = null

@@ -66,6 +66,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Link } from '@element-plus/icons-vue'
+import { invoke } from '../../api/desktop'
 
 interface VideoQuality {
   value: string
@@ -179,13 +180,13 @@ const handleSubmit = async () => {
   selectedQuality.value = ''
 
   try {
-    const data = await window.ipcRenderer.invoke('douyin:parse', videoUrl.value.trim())
+    const data = await invoke('douyin:parse', videoUrl.value.trim())
     console.log('API Response:', data)
 
     if (!data?.success || !data?.data) {
       const message = data?.error || '解析失败，请检查链接是否正确'
       ElMessage.error(typeof message === 'string' ? message : '解析失败')
-      await window.ipcRenderer.invoke('history:add', {
+      await invoke('history:add', {
         moduleName: '抖音去水印',
         appName: '抖音',
         content: JSON.stringify({
@@ -215,7 +216,7 @@ const handleSubmit = async () => {
     lastParsedUrl.value = videoUrl.value.trim()
     ElMessage.success('解析成功')
 
-    await window.ipcRenderer.invoke('history:add', {
+    await invoke('history:add', {
       moduleName: '抖音去水印',
       appName: '抖音',
       content: JSON.stringify({
@@ -244,7 +245,7 @@ const handleSubmit = async () => {
     ElMessage.error(error instanceof Error ? error.message : '处理失败，请稍后重试')
 
     try {
-      await window.ipcRenderer.invoke('history:add', {
+      await invoke('history:add', {
         moduleName: '抖音去水印',
         appName: '抖音',
         content: JSON.stringify({

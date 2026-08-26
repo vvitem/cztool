@@ -27,7 +27,13 @@ function readEnvFileValue(mode: string, key: string): string {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
-  fs.rmSync('dist-electron', { recursive: true, force: true })
+  // electron（默认）| web（Tauri 前端 / 纯浏览器预览）
+  const desktop = process.env.CZTOOL_DESKTOP || 'electron'
+  const useElectron = desktop === 'electron'
+
+  if (useElectron) {
+    fs.rmSync('dist-electron', { recursive: true, force: true })
+  }
 
   // loadEnv merges process.env over .env files — stale shell VITE_* (e.g. old
   // workers.dev) would otherwise win and break unlock on CN networks.
@@ -49,15 +55,15 @@ export default defineConfig(({ command, mode }) => {
     )
   }
   if (isBuild) {
-    console.log(`[build] unlock API → ${unlockApiUrl}`)
+    console.log(`[build] desktop=${desktop} unlock API → ${unlockApiUrl}`)
   }
 
-  return {
-    plugins: [
-      vue(),
+  const plugins: any[] = [vue()]
+
+  if (useElectron) {
+    plugins.push(
       electron({
         main: {
-          // Shortcut of `build.lib.entry`
           entry: 'electron/main/index.ts',
           onstart({ startup }) {
             if (process.env.VSCODE_DEBUG) {
@@ -78,7 +84,7 @@ export default defineConfig(({ command, mode }) => {
               rollupOptions: {
                 external: [
                   ...Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
-                  'better-sqlite3'
+                  'better-sqlite3',
                 ],
               },
             },
@@ -100,17 +106,28 @@ export default defineConfig(({ command, mode }) => {
             },
           },
         },
-        // Electron-builder configuration
         renderer: {},
       }),
-    ],
-    server: process.env.VSCODE_DEBUG && (() => {
-      const url = new URL(pkg.debug.env.VITE_DEV_SERVER_URL)
-      return {
-        host: url.hostname,
-        port: +url.port,
-      }
-    })(),
+    )
+  }
+
+  return {
+    plugins,
+    // Tauri 需要固定端口，且可从局域网外访问（false）
     clearScreen: false,
+    server: useElectron && process.env.VSCODE_DEBUG
+      ? (() => {
+          const url = new URL(pkg.debug.env.VITE_DEV_SERVER_URL)
+          return {
+            host: url.hostname,
+            port: +url.port,
+          }
+        })()
+      : {
+          host: 'localhost',
+          port: 5173,
+          strictPort: true,
+        },
+    envPrefix: ['VITE_', 'TAURI_'],
   }
 })

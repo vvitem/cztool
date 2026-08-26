@@ -57,6 +57,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import WindowControls from './WindowControls.vue'
+import { invoke } from '../api/desktop'
 
 const emit = defineEmits<{ unlocked: [] }>()
 
@@ -77,7 +78,7 @@ const shortDeviceId = computed(() => {
 
 onMounted(async () => {
   try {
-    deviceId.value = await window.ipcRenderer.invoke('unlock:get-device-id')
+    deviceId.value = await invoke('unlock:get-device-id')
   } catch {
     // ignore
   }
@@ -85,7 +86,7 @@ onMounted(async () => {
 
 const openShop = async () => {
   try {
-    await window.ipcRenderer.invoke('unlock:open-external', shopUrl)
+    await invoke('unlock:open-external', shopUrl)
   } catch {
     window.open(shopUrl, '_blank')
   }
@@ -106,7 +107,7 @@ const submit = async () => {
   error.value = ''
   loading.value = true
   try {
-    const result = await window.ipcRenderer.invoke('unlock:verify', code.value)
+    const result = await invoke('unlock:verify', code.value)
     if (result?.ok) {
       emit('unlocked')
       return

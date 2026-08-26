@@ -7,6 +7,6 @@ declare module '*.vue' {
 }
 
 interface Window {
-  // expose in the `electron/preload/index.ts`
-  ipcRenderer: import('electron').IpcRenderer
+  // Electron preload 暴露；Tauri 运行时不存在，改走 src/api/desktop.ts
+  ipcRenderer?: import('electron').IpcRenderer
 }
