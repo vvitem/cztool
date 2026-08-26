@@ -11,7 +11,8 @@ import Database from 'better-sqlite3'
 import { v4 as uuidv4 } from 'uuid'
 import AutoLaunch from 'auto-launch'
 import { registerRulesIpc } from './rules'
-import { registerUpdateIpc, scheduleAutoUpdateCheck } from './update'
+import { registerUpdateIpc } from './update'
+import { registerUnlockIpc } from './unlock'
 
 const execAsync = promisify(exec)
 
@@ -195,14 +196,34 @@ ipcMain.handle('history:clear-all', async () => {
   }
 })
 
+/** 从最小化 / 隐藏状态恢复并聚焦主窗口 */
+function showMainWindow() {
+  if (!win || win.isDestroyed()) {
+    void createWindow()
+    return
+  }
+  if (win.isMinimized()) {
+    win.restore()
+  }
+  if (!win.isVisible()) {
+    win.show()
+  }
+  win.setSkipTaskbar(false)
+  win.focus()
+}
+
 async function createWindow() {
   win = new BrowserWindow({
-    title: 'Main window',
+    title: 'CZTool',
     icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
     minWidth: 1000,
     minHeight: 800,
     width: 1000,
     height: 800,
+    show: false,
+    skipTaskbar: false,
+    minimizable: true,
+    maximizable: true,
     webPreferences: {
       preload,
       nodeIntegration: true,
@@ -213,10 +234,20 @@ async function createWindow() {
     frame: false,
   })
 
+  win.once('ready-to-show', () => {
+    win?.show()
+  })
+
+  // 任务栏 / Dock 点击还原（部分系统仅靠 activate 不够）
+  win.on('restore', () => {
+    win?.show()
+    win?.focus()
+  })
+
   win.on('close', (event) => {
-    if (!app.isQuiting) {
-      event.preventDefault();
-      win.hide();
+    // 关闭即退出，不再隐藏到托盘
+    if (!(app as any).isQuiting) {
+      (app as any).isQuiting = true
     }
   });
 
@@ -226,22 +257,18 @@ async function createWindow() {
   // 创建系统托盘图标
   tray = new Tray(path.join(process.env.VITE_PUBLIC, 'logo.png'));
   tray.setToolTip('cztool')
-  tray.on('double-click', () => {
-    // 处理双击事件，例如显示窗口
-    if (!win.isVisible()) {
-      win.show();
-    }
-  })
+  const openFromTray = () => showMainWindow()
+  tray.on('click', openFromTray)
+  tray.on('double-click', openFromTray)
   const contextMenu = Menu.buildFromTemplate([
     {
       label: '打开',
-      click: () => {
-        win.show();
-      },
+      click: openFromTray,
     },
     {
       label: '退出',
       click: () => {
+        (app as any).isQuiting = true
         app.quit()
       },
     },
@@ -294,21 +321,19 @@ async function createWindow() {
   });
 
   win.webContents.session.setDevicePermissionHandler(() => true);
-
-  scheduleAutoUpdateCheck(4000)
 }
 
 app.whenReady().then(createWindow)
 
 // 添加窗口控制事件处理
 ipcMain.on('minimize-window', () => {
-  if (win) {
+  if (win && !win.isDestroyed()) {
     win.minimize();
   }
 });
 
 ipcMain.on('maximize-window', () => {
-  if (win) {
+  if (win && !win.isDestroyed()) {
     if (win.isMaximized()) {
       win.unmaximize();
     } else {
@@ -318,31 +343,26 @@ ipcMain.on('maximize-window', () => {
 });
 
 ipcMain.on('close-window', () => {
-  if (win) {
-    win.close();
-  }
+  ;(app as any).isQuiting = true
+  app.quit()
 });
 
 app.on('window-all-closed', () => {
   win = null
-  if (process.platform !== 'darwin') app.quit()
+  app.quit()
+})
+
+app.on('before-quit', () => {
+  ;(app as any).isQuiting = true
 })
 
 app.on('second-instance', () => {
-  if (win) {
-    // Focus on the main window if the user tried to open another
-    if (win.isMinimized()) win.restore()
-    win.focus()
-  }
+  showMainWindow()
 })
 
 app.on('activate', () => {
-  const allWindows = BrowserWindow.getAllWindows()
-  if (allWindows.length) {
-    allWindows[0].focus()
-  } else {
-    createWindow()
-  }
+  // macOS：点 Dock 图标；最小化时必须 restore，仅 focus 无效
+  showMainWindow()
 })
 
 app.on('before-quit', () => {
@@ -937,6 +957,7 @@ ipcMain.handle('system:machine-info', async () => {
 
 registerRulesIpc()
 registerUpdateIpc(() => win)
+registerUnlockIpc()
 
 // 自动启动相关处理
 const autoLauncher = new AutoLaunch({

@@ -1,0 +1,15 @@
+name = "cztool-unlock-api"
+main = "src/index.ts"
+compatibility_date = "2024-08-26"
+
+# Bind to the SAME D1 database as your EdgeKey deployment.
+# Replace database_id with your edgekey-db UUID from Cloudflare Dashboard.
+[[d1_databases]]
+binding = "DB"
+database_name = "edgekey-db"
+database_id = "0dff8303-63ff-46c8-a1dd-fde2c400422f"
+migrations_dir = "migrations"
+
+[vars]
+# Optional: restrict unlock to cards from one EdgeKey product (e.g. "3")
+# CZTOOL_PRODUCT_ID = "3"

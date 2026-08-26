@@ -27,6 +27,30 @@ function sendStatus(status: UpdateStatus) {
   }
 }
 
+/** electron-updater 错误常夹带 HTML/Atom 全文，界面只展示短句 */
+function sanitizeUpdateError(raw: unknown): string {
+  const text = String((raw as any)?.message || raw || '检查更新失败')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network|fetch failed|net::/i.test(text)) {
+    return '网络异常，请稍后重试'
+  }
+  if (/401|403|Unauthorized|Bad credentials|private/i.test(text)) {
+    return '无法访问更新源（仓库权限或 Token 无效）'
+  }
+  if (/Unable to find latest version|Cannot parse releases feed|latest\.yml|404/i.test(text)) {
+    return '暂未找到可用更新，请稍后再试'
+  }
+  if (/code signature|not signed|notariz/i.test(text)) {
+    return '更新包校验失败'
+  }
+
+  const firstLine = text.split(/[\n\r]/)[0] || text
+  if (firstLine.length <= 80) return firstLine
+  return `${firstLine.slice(0, 80)}…`
+}
+
 function configureUpdater() {
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
@@ -53,7 +77,8 @@ function configureUpdater() {
   })
 
   autoUpdater.on('error', (err) => {
-    sendStatus({ type: 'error', message: err?.message || String(err) })
+    console.error('[update]', err)
+    sendStatus({ type: 'error', message: sanitizeUpdateError(err) })
   })
 }
 
@@ -71,7 +96,8 @@ async function checkForUpdates(manual: boolean) {
     const result = await autoUpdater.checkForUpdates()
     return { ok: true, manual, version: result?.updateInfo?.version }
   } catch (error: any) {
-    const message = error?.message || '检查更新失败'
+    console.error('[update]', error)
+    const message = sanitizeUpdateError(error)
     sendStatus({ type: 'error', message })
     return { ok: false, manual, message }
   }

@@ -123,11 +123,13 @@ const applyStatus = (status: UpdateStatus, fromManual = false) => {
       checking.value = false
       if (fromManual) ElMessage.info(status.message)
       break
-    case 'error':
-      statusText.value = `失败：${status.message}`
+    case 'error': {
+      const short = (status.message || '检查失败').slice(0, 80)
+      statusText.value = `失败：${short}`
       checking.value = false
-      if (fromManual) ElMessage.error(status.message)
+      if (fromManual) ElMessage.error(short)
       break
+    }
   }
 }
 
@@ -138,7 +140,9 @@ const handleCheckUpdate = async () => {
     await window.ipcRenderer.invoke('update:check')
   } catch (error: any) {
     checking.value = false
-    ElMessage.error(error?.message || '检查失败')
+    const msg = String(error?.message || '检查失败').slice(0, 80)
+    statusText.value = `失败：${msg}`
+    ElMessage.error(msg)
   }
 }
 
@@ -188,6 +192,11 @@ onBeforeUnmount(() => {
   padding: 14px 0;
 }
 
+.setting-copy {
+  min-width: 0;
+  flex: 1;
+}
+
 .setting-divider {
   height: 1px;
   background: var(--cz-border);
@@ -204,5 +213,9 @@ onBeforeUnmount(() => {
   margin-top: 2px;
   font-size: 12px;
   color: var(--cz-text-tertiary);
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

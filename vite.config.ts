@@ -1,12 +1,19 @@
 import fs from 'node:fs'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import electron from 'vite-plugin-electron/simple'
 import pkg from './package.json'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
   fs.rmSync('dist-electron', { recursive: true, force: true })
+
+  const env = loadEnv(mode, process.cwd(), '')
+  const unlockApiUrl = process.env.CZTOOL_UNLOCK_API_URL
+    || process.env.VITE_UNLOCK_API_URL
+    || env.CZTOOL_UNLOCK_API_URL
+    || env.VITE_UNLOCK_API_URL
+    || ''
 
   const isServe = command === 'serve'
   const isBuild = command === 'build'
@@ -27,6 +34,10 @@ export default defineConfig(({ command }) => {
             }
           },
           vite: {
+            define: {
+              'process.env.VITE_UNLOCK_API_URL': JSON.stringify(unlockApiUrl),
+              'process.env.CZTOOL_UNLOCK_API_URL': JSON.stringify(unlockApiUrl),
+            },
             build: {
               sourcemap,
               minify: isBuild,

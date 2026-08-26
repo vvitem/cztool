@@ -1,8 +1,10 @@
 <template>
-  <div class="app">
+  <UnlockGate v-if="locked" @unlocked="onUnlocked" />
+  <div v-show="!locked" class="app">
     <el-container class="main">
       <el-aside :width="sidebarWidth + 'px'" class="sidebar">
         <div class="sidebar-top drag">
+          <WindowControls v-if="isMac" position="sidebar" />
           <div class="brand no_drag">
             <div class="brand-mark">CZ</div>
             <div class="brand-text">
@@ -94,17 +96,7 @@
       <el-main class="main_content">
         <div class="main_content_top drag">
           <div class="page-title no_drag">{{ activeItem.title }}</div>
-          <div class="window-controls no_drag">
-            <el-button class="window-btn" text @click="handleMinimize">
-              <el-icon><Minus /></el-icon>
-            </el-button>
-            <el-button class="window-btn" text @click="handleMaximize">
-              <el-icon><FullScreen /></el-icon>
-            </el-button>
-            <el-button class="window-btn close-btn" text @click="handleClose">
-              <el-icon><Close /></el-icon>
-            </el-button>
-          </div>
+          <WindowControls v-if="!isMac" position="title" />
         </div>
         <div class="main_content_content">
           <component :is="activeItem.component" />
@@ -117,11 +109,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, type Component } from 'vue'
 import { ElMessageBox } from 'element-plus'
-import { Minus, FullScreen, Close, Grid, Clock, Setting, Monitor, Cpu, User, Collection } from '@element-plus/icons-vue'
+import { Grid, Clock, Setting, Monitor, Cpu, User, Collection } from '@element-plus/icons-vue'
 import ToolBox from './components/ToolBox.vue'
 import History from './components/History.vue'
 import Settings from './components/Settings.vue'
 import RulesCenter from './components/RulesCenter.vue'
+import UnlockGate from './components/UnlockGate.vue'
+import WindowControls from './components/WindowControls.vue'
 
 const SIDEBAR = {
   MIN_WIDTH: 200,
@@ -172,6 +166,13 @@ const toolList = ref<NavItem[]>([
 ])
 
 const activeItem = ref<NavItem>(toolList.value[0])
+const locked = ref(true)
+
+const isMac = computed(() => {
+  if (machineInfo.value?.platform === 'darwin') return true
+  if (machineInfo.value?.platform === 'win32' || machineInfo.value?.platform === 'linux') return false
+  return /Mac|Darwin/i.test(navigator.userAgent || '')
+})
 
 const memPercent = computed(() => {
   if (!machineInfo.value?.totalMem) return 0
@@ -243,12 +244,19 @@ const stopResize = () => {
   document.removeEventListener('mouseup', stopResize)
 }
 
-const handleMinimize = () => { window?.ipcRenderer.send('minimize-window') }
-const handleMaximize = () => { window?.ipcRenderer.send('maximize-window') }
-const handleClose = () => { window?.ipcRenderer.send('close-window') }
-
 let promptedVersion: string | null = null
 let offUpdateStatus: (() => void) | undefined
+
+const startAppServices = () => {
+  loadMachineInfo()
+  machineInfoTimer = setInterval(loadMachineInfo, 15000)
+  offUpdateStatus = window.ipcRenderer.on('update:status', handleUpdateStatus) as unknown as () => void
+}
+
+const onUnlocked = () => {
+  locked.value = false
+  startAppServices()
+}
 
 const handleUpdateStatus = async (status: { type: string; version?: string; message?: string }) => {
   if (status.type !== 'downloaded' || !status.version) return
@@ -272,10 +280,16 @@ const handleUpdateStatus = async (status: { type: string; version?: string; mess
   }
 }
 
-onMounted(() => {
-  loadMachineInfo()
-  machineInfoTimer = setInterval(loadMachineInfo, 15000)
-  offUpdateStatus = window.ipcRenderer.on('update:status', handleUpdateStatus) as unknown as () => void
+onMounted(async () => {
+  try {
+    const status = await window.ipcRenderer.invoke('unlock:get-status')
+    locked.value = !!status?.locked
+  } catch {
+    locked.value = true
+  }
+  if (!locked.value) {
+    startAppServices()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -320,6 +334,7 @@ onBeforeUnmount(() => {
   height: 56px;
   display: flex;
   align-items: center;
+  gap: 12px;
   padding: 0 14px;
   border-bottom: 1px solid var(--cz-border);
   box-sizing: border-box;
@@ -648,30 +663,6 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--cz-text-primary);
-}
-
-.window-controls {
-  display: flex;
-  height: 56px;
-  align-items: stretch;
-}
-
-.window-btn {
-  width: 40px;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border-radius: 0;
-  color: var(--cz-text-primary);
-}
-
-.window-btn:hover {
-  background-color: rgba(148, 163, 184, 0.2);
-}
-
-.close-btn:hover {
-  background-color: #f56c6c;
-  color: #fff;
 }
 
 .main_content_content {

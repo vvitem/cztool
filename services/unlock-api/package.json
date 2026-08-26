@@ -1,0 +1,18 @@
+{
+  "name": "cztool-unlock-api",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "dev:mock": "npx tsx dev-server.ts",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 execute edgekey-db --local --file=./migrations/001_cztool_unlock.sql",
+    "db:migrate:remote": "wrangler d1 execute edgekey-db --remote --file=./migrations/001_cztool_unlock.sql"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240815.0",
+    "tsx": "^4.23.12",
+    "typescript": "^5.5.4",
+    "wrangler": "^3.72.0"
+  }
+}

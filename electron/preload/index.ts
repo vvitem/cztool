@@ -64,6 +64,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
       'update:set-auto-check',
       'update:check',
       'update:quit-and-install',
+      'unlock:get-status',
+      'unlock:get-device-id',
+      'unlock:verify',
+      'unlock:clear',
     ];
     if (validChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, ...args);
