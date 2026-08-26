@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "CZTool",
-  "version": "28.4.2",
+  "version": "30.0.0",
   "identifier": "com.cztool.app",
   "build": {
     "frontendDist": "../dist",

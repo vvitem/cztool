@@ -1,124 +1,30 @@
 {
   "name": "cztool",
-  "version": "28.4.2",
-  "main": "dist-electron/main/index.js",
-  "description": "Really simple Electron + Vue + Vite boilerplate.",
+  "version": "30.0.0",
+  "description": "CZTool desktop toolbox (Tauri + Vue 3)",
   "author": "ol",
   "license": "MIT",
   "private": true,
-  "keywords": [
-    "electron",
-    "rollup",
-    "vite",
-    "vue3",
-    "vue"
-  ],
-  "debug": {
-    "env": {
-      "VITE_DEV_SERVER_URL": "http://127.0.0.1:3344/"
-    }
-  },
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:web": "CZTOOL_DESKTOP=web vite",
-    "dev:tauri": "tauri dev",
-    "build": "vite build && electron-builder",
-    "build:web": "CZTOOL_DESKTOP=web vite build",
-    "build:tauri": "tauri build",
-    "build:win": "vite build && electron-builder --win",
-    "build:mac": "vite build && electron-builder --mac",
+    "dev": "tauri dev",
+    "dev:web": "vite",
+    "build": "tauri build",
+    "build:web": "vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.7.1",
     "@tauri-apps/cli": "^2.11.4",
     "@vitejs/plugin-vue": "^5.0.4",
-    "electron": "^29.1.1",
-    "electron-builder": "^24.13.3",
-    "electron-rebuild": "^3.2.9",
     "typescript": "^5.4.2",
     "vite": "^5.1.5",
-    "vite-plugin-electron": "^0.28.4",
-    "vite-plugin-electron-renderer": "^0.14.5",
     "vue": "^3.4.21",
     "vue-tsc": "^2.0.6"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
-    "@types/uuid": "^10.0.0",
-    "auto-launch": "^5.0.6",
-    "axios": "^1.7.7",
-    "better-sqlite3": "^11.5.0",
-    "electron-updater": "^6.8.9",
     "element-plus": "^2.8.8",
-    "naive-ui": "^2.40.3",
-    "node-fetch": "^3.3.2",
-    "tdesign-vue-next": "^1.10.3",
-    "uuid": "^11.0.3"
-  },
-  "build": {
-    "appId": "com.cztool.app",
-    "productName": "CZTool",
-    "directories": {
-      "output": "release"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "vvitem",
-        "repo": "cztool"
-      }
-    ],
-    "asar": true,
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*",
-      "package.json",
-      "!src/**/*",
-      "!electron/**/*",
-      "!services/**/*",
-      "!docs/**/*",
-      "!test_data/**/*",
-      "!release/**/*",
-      "!resources/**/*",
-      "!.codegraph/**/*",
-      "!.cursor/**/*",
-      "!.vscode/**/*",
-      "!.github/**/*",
-      "!.env",
-      "!.env.*",
-      "!index.js",
-      "!**/*.{ts,tsx,vue,md,map}",
-      "!**/tsconfig*.json",
-      "!**/vite.config.*"
-    ],
-    "mac": {
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "icon": "public/favicon.ico",
-      "category": "public.app-category.utilities"
-    },
-    "win": {
-      "artifactName": "${productName}-Setup-${version}.${ext}",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "public/favicon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
-    }
+    "naive-ui": "^2.40.3"
   }
 }

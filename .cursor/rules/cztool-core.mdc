@@ -5,7 +5,7 @@ alwaysApply: true
 
 # CZTool Core
 
-桌面工具箱：Electron + Vue 3 + Vite + TypeScript。UI 以 Element Plus 为主。
+桌面工具箱：Tauri 2 + Vue 3 + Vite + TypeScript。UI 以 Element Plus 为主。
 
 ## 探码
 
@@ -15,10 +15,9 @@ alwaysApply: true
 
 ## 架构边界
 
-- **渲染进程**：界面、弹窗、倒计时等交互；经 preload 白名单 IPC 调主进程。
-- **主进程** `electron/main/`：窗口/托盘、SQLite 历史、系统能力、需 Node 的第三方请求。
-- **preload** `electron/preload/`：只扩白名单 channel，禁止暴露整包 Electron API。
-- 新能力先判断放渲染还是主进程；需要关机/通知/DB/受限网络 → 主进程。
+- **前端（WebView）**：界面与交互；经 `src/api/desktop.ts` 调 Rust 命令，禁止直接碰 Tauri/Electron 全局。
+- **后端（Rust）** `src-tauri/src/`：窗控、SQLite 历史、解锁、规则扫描、HTTP、自动更新。
+- 新能力先判断放前端还是 Rust；需要文件系统 / DB / 受限网络 / 系统托盘 → Rust。
 
 ## 改动纪律
 

@@ -6,7 +6,10 @@ declare module '*.vue' {
   export default component
 }
 
-interface Window {
-  // Electron preload 暴露；Tauri 运行时不存在，改走 src/api/desktop.ts
-  ipcRenderer?: import('electron').IpcRenderer
+interface ImportMetaEnv {
+  readonly VITE_UNLOCK_API_URL?: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
 }

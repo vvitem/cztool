@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "28.4.2"
+version = "30.0.0"
 description = "CZTool desktop (Tauri)"
 authors = ["ol"]
 license = "MIT"
