@@ -91,6 +91,7 @@ pub fn run() {
       history::history_clear_all,
       system_info::system_machine_info,
       http_tools::douyin_parse,
+      http_tools::qq_search,
       http_tools::fetch_qq_nickname,
       update::update_get_version,
       update::update_get_settings,

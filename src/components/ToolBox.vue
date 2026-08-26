@@ -18,9 +18,8 @@
 
     <el-dialog
       v-model="currentDialog.douyin"
-      title="抖音去水印"
-      width="520px"
-      class="cz-tool-dialog"
+      width="560px"
+      class="cz-tool-dialog tone-cyan"
       align-center
       :show-close="true"
       :close-on-click-modal="false"
@@ -28,14 +27,24 @@
       @close="closeDialog('douyin')"
       destroy-on-close
     >
+      <template #header>
+        <div class="dialog-heading">
+          <span class="dialog-heading-mark cyan">
+            <el-icon><VideoCamera /></el-icon>
+          </span>
+          <div>
+            <div class="dialog-heading-title">视频解析</div>
+            <div class="dialog-heading-sub">解析分享链接 · 浏览器打开视频</div>
+          </div>
+        </div>
+      </template>
       <DouyinDialog @close="closeDialog('douyin')" />
     </el-dialog>
 
     <el-dialog
       v-model="currentDialog.qq"
-      title="QQ号查询"
-      width="520px"
-      class="cz-tool-dialog"
+      width="560px"
+      class="cz-tool-dialog tone-blue"
       align-center
       :show-close="true"
       :close-on-click-modal="false"
@@ -43,6 +52,17 @@
       @close="closeDialog('qq')"
       destroy-on-close
     >
+      <template #header>
+        <div class="dialog-heading">
+          <span class="dialog-heading-mark blue">
+            <el-icon><Search /></el-icon>
+          </span>
+          <div>
+            <div class="dialog-heading-title">QQ 号查询</div>
+            <div class="dialog-heading-sub">查询头像、昵称与关联手机号</div>
+          </div>
+        </div>
+      </template>
       <QQDialog @close="closeDialog('qq')" />
     </el-dialog>
   </div>
@@ -71,7 +91,7 @@ interface Tool {
 
 const tools = ref<Tool[]>([
   { id: 'qq', name: 'QQ号查询', icon: Search, type: 'qq', description: '快速查询QQ号信息', tone: 'blue' },
-  { id: 'douyin', name: '抖音去水印', icon: VideoCamera, type: 'douyin', description: '无水印视频下载', tone: 'cyan' },
+  { id: 'douyin', name: '视频解析', icon: VideoCamera, type: 'douyin', description: '解析视频分享链接', tone: 'cyan' },
   { id: 'share', name: '更多功能', icon: MoreFilled, type: 'more', description: '更多工具', tone: 'slate' },
 ])
 
@@ -167,9 +187,5 @@ const handleToolClick = (tool: Tool) => {
   font-size: 12px;
   line-height: 1.4;
   color: var(--cz-text-tertiary);
-}
-
-:deep(.el-dialog) {
-  background: var(--cz-surface);
 }
 </style>

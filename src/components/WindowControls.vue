@@ -2,6 +2,8 @@
   <div
     class="window-controls no_drag"
     :class="[isMac ? 'is-mac' : 'is-win', `pos-${position}`]"
+    @dblclick.stop
+    @mousedown.stop
   >
     <template v-if="isMac">
       <button type="button" class="traffic close" title="关闭" @click="emitClose" />

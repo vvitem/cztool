@@ -36,12 +36,43 @@ export async function invoke<T = unknown>(channel: string, ...args: unknown[]): 
   throw new Error(`[desktop] invoke(${channel}) 仅支持 Tauri 运行时`)
 }
 
+/** 用系统默认浏览器打开链接（Tauri 内 window.open 无效） */
+export async function openExternal(url: string): Promise<void> {
+  const target = url.trim()
+  if (!target) return
+  if (getDesktopRuntime() === 'tauri') {
+    await tauriInvoke('unlock:open-external', target)
+    return
+  }
+  window.open(target, '_blank')
+}
+
 export function send(channel: string, data?: unknown): void {
   if (getDesktopRuntime() === 'tauri') {
-    void tauriInvoke(channel, data)
+    if (data === undefined) void tauriInvoke(channel)
+    else void tauriInvoke(channel, data)
     return
   }
   throw new Error(`[desktop] send(${channel}) 仅支持 Tauri 运行时`)
+}
+
+/** 顶栏拖动窗口（备用；优先用 data-tauri-drag-region） */
+export async function startWindowDrag(): Promise<void> {
+  if (getDesktopRuntime() !== 'tauri') return
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  await getCurrentWindow().startDragging()
+}
+
+/** 双击顶栏：最大化 / 还原 */
+export async function toggleMaximizeWindow(): Promise<void> {
+  if (getDesktopRuntime() !== 'tauri') {
+    send('maximize-window')
+    return
+  }
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  const win = getCurrentWindow()
+  if (await win.isMaximized()) await win.unmaximize()
+  else await win.maximize()
 }
 
 export function on(channel: string, listener: (...args: unknown[]) => void): Unsubscribe {

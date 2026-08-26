@@ -235,8 +235,9 @@ pub fn unlock_clear(app: AppHandle) -> Result<Value, String> {
 #[tauri::command]
 pub fn unlock_open_external(app: AppHandle, payload: String) -> Result<Value, String> {
   let target = payload.trim().to_string();
-  if !target.to_lowercase().starts_with("https://") {
-    return Err("仅允许打开 https 链接".into());
+  let lower = target.to_lowercase();
+  if !(lower.starts_with("https://") || lower.starts_with("http://")) {
+    return Err("仅允许打开 http/https 链接".into());
   }
   tauri_plugin_opener::OpenerExt::opener(&app)
     .open_url(&target, None::<&str>)

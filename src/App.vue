@@ -3,7 +3,11 @@
   <div v-show="!locked" class="app">
     <el-container class="main">
       <el-aside :width="sidebarWidth + 'px'" class="sidebar">
-        <div class="sidebar-top drag">
+        <div
+          class="sidebar-top drag"
+          data-tauri-drag-region
+          @dblclick="toggleMaximizeWindow"
+        >
           <WindowControls v-if="isMac" position="sidebar" />
           <div class="brand no_drag">
             <div class="brand-mark">CZ</div>
@@ -94,7 +98,11 @@
       </el-aside>
 
       <el-main class="main_content">
-        <div class="main_content_top drag">
+        <div
+          class="main_content_top drag"
+          data-tauri-drag-region
+          @dblclick="toggleMaximizeWindow"
+        >
           <div class="page-title no_drag">{{ activeItem.title }}</div>
           <WindowControls v-if="!isMac" position="title" />
         </div>
@@ -118,7 +126,7 @@ import Settings from './components/Settings.vue'
 import RulesCenter from './components/RulesCenter.vue'
 import UnlockGate from './components/UnlockGate.vue'
 import WindowControls from './components/WindowControls.vue'
-import { invoke, on } from './api/desktop'
+import { invoke, on, toggleMaximizeWindow } from './api/desktop'
 
 const SIDEBAR = {
   MIN_WIDTH: 200,
@@ -306,7 +314,11 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-.app { height: 100vh; overflow: hidden; }
+.app {
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
 
 .main { height: 100%; overflow: hidden; background: transparent; }
 
@@ -675,6 +687,12 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-.drag { -webkit-app-region: drag; }
-.no_drag { -webkit-app-region: no-drag; }
+.drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+.no_drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
 </style>

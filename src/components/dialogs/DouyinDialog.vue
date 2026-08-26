@@ -1,52 +1,79 @@
 <template>
   <div class="cz-dialog-body douyin-dialog">
-    <div class="input-wrapper">
+    <section class="query-block">
+      <label class="field-label">视频链接 / 口令</label>
       <el-input
         v-model="videoUrl"
-        placeholder="请粘贴抖音分享链接或口令"
-        :prefix-icon="Link"
+        class="query-input"
+        type="textarea"
+        :rows="3"
+        resize="none"
+        placeholder="粘贴视频分享文案或 https 链接"
         clearable
-        size="large"
         @clear="clearInput"
-        @keydown.enter="handleSubmit"
+        @keydown.enter.ctrl="handleSubmit"
         @keydown.esc="$emit('close')"
       />
-    </div>
+      <p class="field-hint">支持分享口令全文；解析后可选择清晰度再打开</p>
+    </section>
 
-    <div v-if="parseResult" class="cz-dialog-panel video-info">
-      <div class="video-header">
-        <img
-          v-if="parseResult.cover"
-          :src="parseResult.cover"
-          class="video-cover"
-          alt="封面"
-        />
-        <div class="video-meta">
-          <div class="video-title">{{ parseResult.title || '无标题' }}</div>
-          <div class="video-type">类型：{{ parseResult.type || 'video' }}</div>
+    <section class="result-stage">
+      <div v-if="parseResult" class="result-card">
+        <div class="video-header">
+          <div class="cover-wrap">
+            <img
+              v-if="parseResult.cover"
+              :src="parseResult.cover"
+              class="video-cover"
+              alt="封面"
+            />
+            <div v-else class="video-cover placeholder">
+              <el-icon><VideoCamera /></el-icon>
+            </div>
+          </div>
+          <div class="video-meta">
+            <div class="video-title">{{ parseResult.title || '无标题' }}</div>
+            <div class="video-tags">
+              <span class="tone-pill">{{ parseResult.type || 'video' }}</span>
+              <span v-if="availableQualities.length" class="soft-pill">
+                {{ availableQualities.length }} 个清晰度
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="quality-block">
+          <label class="field-label">清晰度</label>
+          <el-select v-model="selectedQuality" placeholder="选择清晰度" style="width: 100%" size="large">
+            <el-option
+              v-for="quality in availableQualities"
+              :key="quality.value"
+              :label="quality.label"
+              :value="quality.value"
+            />
+          </el-select>
+        </div>
+
+        <div class="video-actions">
+          <el-button type="primary" :disabled="!currentVideoUrl" @click="downloadVideo">
+            <el-icon class="btn-icon"><TopRight /></el-icon>
+            打开视频
+          </el-button>
+          <el-button :disabled="!currentVideoUrl" @click="copyVideoUrl">
+            <el-icon class="btn-icon"><DocumentCopy /></el-icon>
+            复制链接
+          </el-button>
         </div>
       </div>
 
-      <div class="video-quality-selector">
-        <el-select v-model="selectedQuality" placeholder="选择清晰度" style="width: 100%">
-          <el-option
-            v-for="quality in availableQualities"
-            :key="quality.value"
-            :label="quality.label"
-            :value="quality.value"
-          />
-        </el-select>
+      <div v-else class="empty-card">
+        <div class="empty-icon">
+          <el-icon><VideoCamera /></el-icon>
+        </div>
+        <div class="empty-title">等待解析</div>
+        <div class="empty-desc">粘贴链接后点下方按钮，封面与下载选项会出现在这里</div>
       </div>
-
-      <div class="video-actions">
-        <el-button type="primary" :disabled="!currentVideoUrl" @click="downloadVideo">
-          下载无水印视频
-        </el-button>
-        <el-button :disabled="!currentVideoUrl" @click="copyVideoUrl">
-          复制视频链接
-        </el-button>
-      </div>
-    </div>
+    </section>
 
     <div class="cz-dialog-footer">
       <el-button @click="$emit('close')">取消</el-button>
@@ -56,7 +83,7 @@
         :disabled="isSubmitDisabled"
         @click="handleSubmit"
       >
-        {{ loading ? '解析中...' : '获取无水印视频' }}
+        {{ loading ? '解析中…' : '解析视频' }}
       </el-button>
     </div>
   </div>
@@ -65,8 +92,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Link } from '@element-plus/icons-vue'
-import { invoke } from '../../api/desktop'
+import { VideoCamera, TopRight, DocumentCopy } from '@element-plus/icons-vue'
+import { invoke, openExternal } from '../../api/desktop'
 
 interface VideoQuality {
   value: string
@@ -159,13 +186,18 @@ const copyVideoUrl = () => {
   }
 }
 
-const downloadVideo = () => {
+const downloadVideo = async () => {
   const url = currentVideoUrl.value
   if (!url) {
     ElMessage.warning('请先选择视频清晰度')
     return
   }
-  window.open(url, '_blank')
+  try {
+    await openExternal(url)
+  } catch (error) {
+    console.error('Open video failed:', error)
+    ElMessage.error(error instanceof Error ? error.message : '打开下载链接失败')
+  }
 }
 
 const handleSubmit = async () => {
@@ -175,9 +207,6 @@ const handleSubmit = async () => {
   }
 
   loading.value = true
-  parseResult.value = null
-  availableQualities.value = []
-  selectedQuality.value = ''
 
   try {
     const data = await invoke('douyin:parse', videoUrl.value.trim())
@@ -187,7 +216,7 @@ const handleSubmit = async () => {
       const message = data?.error || '解析失败，请检查链接是否正确'
       ElMessage.error(typeof message === 'string' ? message : '解析失败')
       await invoke('history:add', {
-        moduleName: '抖音去水印',
+        moduleName: '视频解析',
         appName: '抖音',
         content: JSON.stringify({
           originalUrl: videoUrl.value.trim(),
@@ -210,14 +239,13 @@ const handleSubmit = async () => {
     }
     availableQualities.value = qualities
     if (qualities.length) {
-      // 默认选中最高清晰度（列表最后一项通常更清晰）
       selectedQuality.value = qualities[qualities.length - 1].value
     }
     lastParsedUrl.value = videoUrl.value.trim()
     ElMessage.success('解析成功')
 
     await invoke('history:add', {
-      moduleName: '抖音去水印',
+      moduleName: '视频解析',
       appName: '抖音',
       content: JSON.stringify({
         originalUrl: videoUrl.value.trim(),
@@ -246,7 +274,7 @@ const handleSubmit = async () => {
 
     try {
       await invoke('history:add', {
-        moduleName: '抖音去水印',
+        moduleName: '视频解析',
         appName: '抖音',
         content: JSON.stringify({
           originalUrl: videoUrl.value.trim(),
@@ -279,14 +307,49 @@ defineEmits(['close'])
   min-height: 0;
 }
 
-.input-wrapper {
-  width: 100%;
-}
-
-.video-info {
+.query-block,
+.quality-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cz-text-secondary);
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--cz-text-tertiary);
+}
+
+/* 固定结果区高度，空态/结果切换时弹窗不跳动 */
+.result-stage {
+  height: 268px;
+  display: flex;
+  flex-direction: column;
+}
+
+.result-card,
+.empty-card {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: var(--cz-radius-sm);
+  border: 1px solid var(--cz-border);
+  background: var(--cz-surface-secondary);
+  overflow: auto;
+}
+
+.result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .video-header {
@@ -295,26 +358,39 @@ defineEmits(['close'])
   align-items: flex-start;
 }
 
+.cover-wrap {
+  flex-shrink: 0;
+}
+
 .video-cover {
-  width: 88px;
-  height: 88px;
-  border-radius: 12px;
+  width: 92px;
+  height: 92px;
+  border-radius: 14px;
   object-fit: cover;
   border: 1px solid var(--cz-border);
-  flex-shrink: 0;
-  background: var(--cz-surface-tertiary);
+  background: var(--cz-surface);
+  box-shadow: var(--cz-shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0284c7;
+  font-size: 22px;
+}
+
+.video-cover.placeholder {
+  background: rgba(14, 165, 233, 0.08);
 }
 
 .video-meta {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .video-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--cz-text-primary);
   line-height: 1.45;
   display: -webkit-box;
@@ -323,14 +399,74 @@ defineEmits(['close'])
   overflow: hidden;
 }
 
-.video-type {
-  font-size: 12px;
-  color: var(--cz-text-tertiary);
+.video-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tone-pill,
+.soft-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tone-pill {
+  color: #0284c7;
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.soft-pill {
+  color: var(--cz-text-secondary);
+  background: var(--cz-surface);
+  border: 1px solid var(--cz-border);
 }
 
 .video-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.btn-icon {
+  margin-right: 4px;
+}
+
+.empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  font-size: 18px;
+  color: #0284c7;
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cz-text-primary);
+}
+
+.empty-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--cz-text-tertiary);
 }
 </style>

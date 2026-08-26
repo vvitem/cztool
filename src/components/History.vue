@@ -49,7 +49,7 @@
           <el-table-column prop="content" label="内容" min-width="280">
             <template #default="{ row }">
               <div class="content-cell">
-                <template v-if="row.moduleName === '抖音去水印' && row.status === 'success'">
+                <template v-if="isVideoParseModule(row.moduleName) && row.status === 'success'">
                   <div class="content-summary">{{ parseDouyinContent(row.content) }}</div>
                   <div class="chip-row">
                     <button
@@ -177,7 +177,7 @@
       align-center
     >
       <div v-if="selectedRow" class="detail-content">
-        <template v-if="selectedRow.moduleName === '抖音去水印'">
+        <template v-if="isVideoParseModule(selectedRow.moduleName)">
           <DouyinDetail :record="selectedRow" />
         </template>
         <template v-else-if="selectedRow.moduleName === 'QQ查询'">
@@ -230,7 +230,7 @@ import QQQueryDetail from './history/QQQueryDetail.vue'
 import ShortLinkDetail from './history/ShortLinkDetail.vue'
 import ShareDetail from './history/ShareDetail.vue'
 import { Clock, Delete } from '@element-plus/icons-vue'
-import { invoke } from '../api/desktop'
+import { invoke, openExternal } from '../api/desktop'
 
 interface HistoryRecord {
   id: number
@@ -257,6 +257,7 @@ const formatDate = (timestamp: number) => new Date(timestamp).toLocaleString()
 const getModuleTone = (moduleName: string) => {
   const map: Record<string, string> = {
     QQ查询: 'blue',
+    视频解析: 'cyan',
     抖音去水印: 'cyan',
     抖音解析: 'cyan',
     短链生成: 'indigo',
@@ -264,6 +265,10 @@ const getModuleTone = (moduleName: string) => {
   }
   return map[moduleName] || 'slate'
 }
+
+/** 兼容历史记录里旧的「抖音去水印 / 抖音解析」模块名 */
+const isVideoParseModule = (moduleName?: string) =>
+  moduleName === '视频解析' || moduleName === '抖音去水印' || moduleName === '抖音解析'
 
 const getStatusText = (status: string) => {
   const texts: Record<string, string> = {
@@ -312,9 +317,13 @@ const getDouyinLinks = (content: string) => {
   }
 }
 
-const openLink = (url?: string) => {
+const openLink = async (url?: string) => {
   if (!url) return
-  window.open(url, '_blank')
+  try {
+    await openExternal(url)
+  } catch (error: any) {
+    ElMessage.error(error?.message || '打开链接失败')
+  }
 }
 
 const handleRowClick = (row: HistoryRecord) => {

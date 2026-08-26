@@ -8,6 +8,7 @@ import {
   Clock,
   Document as CopyDocument,
 } from '@element-plus/icons-vue'
+import { openExternal } from '../../api/desktop'
 
 const props = defineProps<{
   record: HistoryRecord
@@ -51,8 +52,12 @@ const formatDate = (timestamp: number) => {
   return new Date(timestamp).toLocaleString()
 }
 
-const openLink = (url: string) => {
-  window.open(url, '_blank')
+const openLink = async (url: string) => {
+  try {
+    await openExternal(url)
+  } catch (error: any) {
+    ElMessage.error(error?.message || '打开链接失败')
+  }
 }
 
 const copyWithTip = (text: string, type: string) => {

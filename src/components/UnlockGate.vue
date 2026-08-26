@@ -1,8 +1,12 @@
 <template>
-  <div class="unlock-gate">
+  <div
+    class="unlock-gate"
+    data-tauri-drag-region
+    @dblclick="toggleMaximizeWindow"
+  >
     <WindowControls position="overlay" />
 
-    <div class="unlock-card">
+    <div class="unlock-card no_drag">
       <div class="unlock-brand">
         <div class="brand-mark">CZ</div>
         <div>
@@ -57,7 +61,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import WindowControls from './WindowControls.vue'
-import { invoke } from '../api/desktop'
+import { invoke, toggleMaximizeWindow, openExternal } from '../api/desktop'
 
 const emit = defineEmits<{ unlocked: [] }>()
 
@@ -86,7 +90,7 @@ onMounted(async () => {
 
 const openShop = async () => {
   try {
-    await invoke('unlock:open-external', shopUrl)
+    await openExternal(shopUrl)
   } catch {
     window.open(shopUrl, '_blank')
   }
@@ -129,10 +133,13 @@ const submit = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 12px;
+  overflow: hidden;
   background:
     linear-gradient(160deg, rgba(239, 246, 255, 0.98), rgba(248, 250, 252, 0.98)),
     var(--cz-bg, #f8fafc);
   -webkit-app-region: drag;
+  app-region: drag;
 }
 
 .unlock-card {
@@ -143,6 +150,7 @@ const submit = async () => {
   border: 1px solid var(--cz-border, #e2e8f0);
   box-shadow: var(--cz-shadow-sm, 0 4px 24px rgba(15, 23, 42, 0.08));
   -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .unlock-brand {
