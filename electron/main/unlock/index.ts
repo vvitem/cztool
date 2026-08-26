@@ -1,4 +1,4 @@
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, shell } from 'electron'
 import { scheduleAutoUpdateCheck } from '../update'
 import { getDeviceId } from './device'
 import { clearSession, isSessionValid, readSession, writeSession } from './session'
@@ -107,6 +107,15 @@ export function registerUnlockIpc(options?: { onUnlocked?: OnUnlocked }) {
 
   ipcMain.handle('unlock:clear', () => {
     clearSession()
+    return { ok: true }
+  })
+
+  ipcMain.handle('unlock:open-external', async (_event, url: string) => {
+    const target = String(url || '').trim()
+    if (!/^https:\/\//i.test(target)) {
+      throw new Error('仅允许打开 https 链接')
+    }
+    await shell.openExternal(target)
     return { ok: true }
   })
 }

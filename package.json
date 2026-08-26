@@ -1,6 +1,6 @@
 {
   "name": "cztool",
-  "version": "28.4.0",
+  "version": "28.4.1",
   "main": "dist-electron/main/index.js",
   "description": "Really simple Electron + Vue + Vite boilerplate.",
   "author": "ol",
@@ -71,20 +71,12 @@
       "!.superpowers/**",
       "!docs/**",
       "!release/**",
+      "!resources/ffmpeg/**",
       "!node_modules/electron/**",
       "!node_modules/electron-builder/**",
       "!services/**",
       "!.env",
       "!.env.*"
-    ],
-    "extraResources": [
-      {
-        "from": "resources/ffmpeg",
-        "to": "ffmpeg",
-        "filter": [
-          "**/*"
-        ]
-      }
     ],
     "mac": {
       "target": [

@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
       'unlock:get-device-id',
       'unlock:verify',
       'unlock:clear',
+      'unlock:open-external',
     ];
     if (validChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, ...args);

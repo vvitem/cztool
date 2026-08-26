@@ -38,7 +38,17 @@
         <code class="device-id" :title="deviceId">{{ shortDeviceId }}</code>
         <el-button text size="small" @click="copyDeviceId">复制</el-button>
       </div>
-      <p class="unlock-hint">激活码可在 EdgeKey 商城购买；一码仅可绑定一台设备，验证通过后 24 小时内免输。</p>
+      <p class="unlock-hint">
+        激活码可在
+        <a
+          class="unlock-shop-link"
+          :href="shopUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          @click.prevent="openShop"
+        >EdgeKey 商城</a>
+        购买；一码仅可绑定一台设备，验证通过后 24 小时内免输。
+      </p>
     </div>
   </div>
 </template>
@@ -55,6 +65,11 @@ const loading = ref(false)
 const error = ref('')
 const deviceId = ref('')
 
+const shopUrl = (
+  (import.meta as any).env?.VITE_EDGEKEY_SHOP_URL
+  || 'https://czt.oihome.dpdns.org/'
+).replace(/\/?$/, '/')
+
 const shortDeviceId = computed(() => {
   if (!deviceId.value) return '—'
   return `${deviceId.value.slice(0, 8)}…${deviceId.value.slice(-6)}`
@@ -67,6 +82,14 @@ onMounted(async () => {
     // ignore
   }
 })
+
+const openShop = async () => {
+  try {
+    await window.ipcRenderer.invoke('unlock:open-external', shopUrl)
+  } catch {
+    window.open(shopUrl, '_blank')
+  }
+}
 
 const copyDeviceId = async () => {
   if (!deviceId.value) return
@@ -196,5 +219,15 @@ const submit = async () => {
   font-size: 11px;
   line-height: 1.5;
   color: var(--cz-text-tertiary, #94a3b8);
+}
+
+.unlock-shop-link {
+  color: var(--cz-primary-hover, #2563eb);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.unlock-shop-link:hover {
+  text-decoration: underline;
 }
 </style>
