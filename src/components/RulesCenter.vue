@@ -33,7 +33,7 @@
           </div>
           <span class="meta-chip">共 {{ assets.length }} 项</span>
           <el-input
-            v-model="keyword"
+            v-model="keywordInput"
             clearable
             placeholder="搜索标题、路径、slug…"
             class="search-input"
@@ -106,7 +106,7 @@
           </button>
           <button type="button" class="chip" :class="{ active: tab === 'health' }" @click="switchTab('health')">
             健康度
-            <span v-if="health?.issueCount" class="chip-count">{{ health.issueCount }}</span>
+            <span v-if="health" class="chip-count">{{ health.issueCount }}</span>
           </button>
         </div>
       </div>
@@ -125,23 +125,31 @@
                   }}
                 </div>
               </div>
-              <div
-                v-for="asset in filteredAssets"
-                :key="asset.id"
-                class="asset-row"
-                :class="{ active: selected?.id === asset.id }"
-                @click="selectAsset(asset)"
+              <VirtualList
+                v-else
+                :items="filteredAssets"
+                :item-height="ASSET_ROW_HEIGHT"
+                key-field="id"
+                class="virt-fill"
               >
-                <div class="asset-main">
-                  <span class="soft-tag" :class="'tool-' + asset.toolId">{{ toolLabel(asset.toolId) }}</span>
-                  <span class="soft-tag kind">{{ kindLabel(asset.kind) }}</span>
-                  <span class="asset-title">{{ asset.title }}</span>
-                </div>
-                <div class="asset-meta">
-                  <span class="asset-path" :title="asset.absPath">{{ asset.relPath }}</span>
-                  <span class="asset-time">{{ formatTime(asset.mtime) }}</span>
-                </div>
-              </div>
+                <template #default="{ item: asset }">
+                  <div
+                    class="asset-row"
+                    :class="{ active: selected?.id === asset.id }"
+                    @click="selectAsset(asset)"
+                  >
+                    <div class="asset-main">
+                      <span class="soft-tag" :class="'tool-' + asset.toolId">{{ toolLabel(asset.toolId) }}</span>
+                      <span class="soft-tag kind">{{ kindLabel(asset.kind) }}</span>
+                      <span class="asset-title">{{ asset.title }}</span>
+                    </div>
+                    <div class="asset-meta">
+                      <span class="asset-path" :title="asset.absPath">{{ asset.relPath }}</span>
+                      <span class="asset-time">{{ formatTime(asset.mtime) }}</span>
+                    </div>
+                  </div>
+                </template>
+              </VirtualList>
             </div>
 
             <div
@@ -210,60 +218,74 @@
           <div class="compare-pane">
             <div class="compare-list">
               <div class="compare-summary">
-                共 {{ compareGroups.length }} 组 ·
-                跨工具 {{ multiToolGroups.length }} 组 ·
-                同内容 {{ identicalGroups.length }} 组
+                <template v-if="compareLoading">正在汇总对照…</template>
+                <template v-else>
+                  共 {{ compareGroups.length }} 组 ·
+                  跨工具 {{ multiToolGroups.length }} 组 ·
+                  同内容 {{ identicalGroups.length }} 组
+                </template>
               </div>
-              <div v-if="!loading && filteredCompareGroups.length === 0" class="empty-state">
+              <div v-if="!loading && !compareLoading && filteredCompareGroups.length === 0" class="empty-state">
                 <div class="empty-title">暂无对照结果</div>
                 <div class="empty-desc">扫描后将按归一化名称汇总各工具中的同名规则</div>
               </div>
-              <div
-                v-for="group in filteredCompareGroups"
-                :key="group.slug"
-                class="compare-card"
-                :data-slug="group.slug"
-                :class="{ active: compareFocus?.slug === group.slug }"
-                @click="openCompareSide(group)"
+              <VirtualList
+                v-else-if="filteredCompareGroups.length"
+                :items="filteredCompareGroups"
+                :item-height="compareItemHeight"
+                key-field="slug"
+                class="virt-fill"
               >
-                <div class="compare-card-head">
-                  <div class="compare-title">{{ group.title }}</div>
-                  <div class="compare-tags">
-                    <span class="soft-tag" :class="'match-' + group.matchType">
-                      {{ matchLabel(group.matchType) }}
-                    </span>
-                    <span
-                      v-for="tid in group.toolIds"
-                      :key="tid"
-                      class="soft-tag"
-                      :class="'tool-' + tid"
-                    >
-                      {{ toolLabel(tid) }}
-                    </span>
-                  </div>
-                </div>
-                <div class="compare-assets">
+                <template #default="{ item: group }">
                   <div
-                    v-for="asset in group.assets"
-                    :key="asset.id"
-                    class="compare-asset"
-                    :class="{ active: compareFocus?.slug === group.slug && (sideLeftId === asset.id || sideRightId === asset.id) }"
-                    @click.stop="previewAssetInCompare(group, asset)"
+                    class="compare-card"
+                    :data-slug="group.slug"
+                    :class="{ active: compareFocus?.slug === group.slug }"
+                    @click="openCompareSide(group)"
                   >
-                    <div class="compare-asset-main">
-                      <span class="soft-tag" :class="'tool-' + asset.toolId">{{ toolLabel(asset.toolId) }}</span>
-                      <span class="compare-asset-path">{{ asset.relPath }}</span>
+                    <div class="compare-card-head">
+                      <div class="compare-title">{{ group.title }}</div>
+                      <div class="compare-tags">
+                        <span class="soft-tag" :class="'match-' + group.matchType">
+                          {{ matchLabel(group.matchType) }}
+                        </span>
+                        <span
+                          v-for="tid in group.toolIds"
+                          :key="tid"
+                          class="soft-tag"
+                          :class="'tool-' + tid"
+                        >
+                          {{ toolLabel(tid) }}
+                        </span>
+                      </div>
                     </div>
-                    <el-button
-                      size="small"
-                      text
-                      @click.stop="jumpToAsset(asset)"
-                    >
-                      资产列表打开
-                    </el-button>
+                    <div class="compare-assets">
+                      <div
+                        v-for="asset in group.assets.slice(0, 8)"
+                        :key="asset.id"
+                        class="compare-asset"
+                        :class="{ active: compareFocus?.slug === group.slug && (sideLeftId === asset.id || sideRightId === asset.id) }"
+                        @click.stop="previewAssetInCompare(group, asset)"
+                      >
+                        <div class="compare-asset-main">
+                          <span class="soft-tag" :class="'tool-' + asset.toolId">{{ toolLabel(asset.toolId) }}</span>
+                          <span class="compare-asset-path">{{ asset.relPath }}</span>
+                        </div>
+                        <el-button
+                          size="small"
+                          text
+                          @click.stop="jumpToAsset(asset)"
+                        >
+                          资产列表打开
+                        </el-button>
+                      </div>
+                      <div v-if="group.assets.length > 8" class="compare-more">
+                        另有 {{ group.assets.length - 8 }} 项，点开后可在右侧切换
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </template>
+              </VirtualList>
             </div>
 
             <div class="compare-side">
@@ -374,24 +396,34 @@
                 </button>
               </div>
 
-              <div v-if="!loading && filteredHealthIssues.length === 0" class="empty-state">
+              <div v-if="healthLoading" class="empty-state">
+                <div class="empty-title">正在分析健康度…</div>
+              </div>
+              <div v-else-if="!loading && filteredHealthIssues.length === 0" class="empty-state">
                 <div class="empty-title">暂无健康度问题</div>
                 <div class="empty-desc">扫描后将检测过大、漂移、重复与缺失入口文件</div>
               </div>
-
-              <div
-                v-for="issue in filteredHealthIssues"
-                :key="issue.id"
-                class="health-card"
-                :class="[issue.severity, { active: healthDetail?.issueId === issue.id }]"
-                @click="openHealthDetail(issue)"
+              <VirtualList
+                v-else-if="filteredHealthIssues.length"
+                :items="filteredHealthIssues"
+                :item-height="HEALTH_ROW_HEIGHT"
+                key-field="id"
+                class="virt-fill"
               >
-                <div class="health-card-top">
-                  <span class="soft-tag" :class="'health-' + issue.type">{{ healthTypeLabel(issue.type) }}</span>
-                  <span class="health-title">{{ issue.title }}</span>
-                </div>
-                <div class="health-msg">{{ issue.message }}</div>
-              </div>
+                <template #default="{ item: issue }">
+                  <div
+                    class="health-card"
+                    :class="[issue.severity, { active: healthDetail?.issueId === issue.id }]"
+                    @click="openHealthDetail(issue)"
+                  >
+                    <div class="health-card-top">
+                      <span class="soft-tag" :class="'health-' + issue.type">{{ healthTypeLabel(issue.type) }}</span>
+                      <span class="health-title">{{ issue.title }}</span>
+                    </div>
+                    <div class="health-msg">{{ issue.message }}</div>
+                  </div>
+                </template>
+              </VirtualList>
             </div>
 
             <div v-if="healthDetail" class="health-detail">
@@ -596,9 +628,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, toRaw } from 'vue'
+import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch, nextTick, toRaw } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { compareAssets, type RuleAsset, type ToolId, type AssetKind, type CompareGroup } from '../utils/rulesCompare'
+import VirtualList from './VirtualList.vue'
 
 interface ToolSummary {
   toolId: ToolId
@@ -639,13 +672,21 @@ const LIST_WIDTH = {
   DEFAULT: 300,
 }
 
+const ASSET_ROW_HEIGHT = 72
+const HEALTH_ROW_HEIGHT = 98
+const SEARCH_DEBOUNCE_MS = 180
+
 const loading = ref(false)
 const previewLoading = ref(false)
-const tools = ref<ToolSummary[]>([])
-const assets = ref<RuleAsset[]>([])
+const tools = shallowRef<ToolSummary[]>([])
+const assets = shallowRef<RuleAsset[]>([])
 const assetById = computed(() => new Map(assets.value.map((a) => [a.id, a])))
-const compareGroups = ref<CompareGroup[]>([])
-const health = ref<HealthReport | null>(null)
+const compareGroups = shallowRef<CompareGroup[]>([])
+const health = shallowRef<HealthReport | null>(null)
+const compareDirty = ref(true)
+const healthDirty = ref(true)
+const compareLoading = ref(false)
+const healthLoading = ref(false)
 const selected = ref<RuleAsset | null>(null)
 const previewText = ref('')
 const previewTruncated = ref(false)
@@ -653,6 +694,7 @@ const isEditing = ref(false)
 const editText = ref('')
 const savedText = ref('')
 const saving = ref(false)
+const keywordInput = ref('')
 const keyword = ref('')
 const filterTool = ref<ToolId | ''>('')
 const filterKind = ref<AssetKind | ''>('')
@@ -791,6 +833,21 @@ const filteredAssets = computed(() => {
       || a.absPath.toLowerCase().includes(q)
     )
   })
+})
+
+const compareItemHeight = (_index: number, group: CompareGroup) => {
+  const shown = Math.min(group.assets.length, 8)
+  // +10 卡片间距
+  return 78 + shown * 44 + (group.assets.length > 8 ? 28 : 0) + 10
+}
+
+let keywordTimer: ReturnType<typeof setTimeout> | null = null
+watch(keywordInput, (val) => {
+  if (keywordTimer) clearTimeout(keywordTimer)
+  keywordTimer = setTimeout(() => {
+    keyword.value = val
+    keywordTimer = null
+  }, SEARCH_DEBOUNCE_MS)
 })
 
 const multiToolGroups = computed(() =>
@@ -1163,6 +1220,8 @@ const switchTab = async (next: TabId) => {
   if (next !== 'compare') compareFocus.value = null
   if (next !== 'health') closeHealthDetail()
   tab.value = next
+  if (next === 'compare') await ensureCompareReady()
+  if (next === 'health') await ensureHealthReady()
 }
 
 const resetEditState = () => {
@@ -1199,16 +1258,48 @@ const loadHealth = async (nextTools: ToolSummary[], nextAssets: RuleAsset[]) => 
   }
 }
 
+const ensureCompareReady = async () => {
+  if (!compareDirty.value) return
+  compareLoading.value = true
+  try {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        compareGroups.value = compareAssets(assets.value.slice())
+        compareDirty.value = false
+        resolve()
+      })
+    })
+  } finally {
+    compareLoading.value = false
+  }
+}
+
+const ensureHealthReady = async () => {
+  if (!healthDirty.value) return
+  healthLoading.value = true
+  try {
+    await loadHealth(tools.value, assets.value)
+    healthDirty.value = false
+  } finally {
+    healthLoading.value = false
+  }
+}
+
+const markDerivedDirty = () => {
+  compareDirty.value = true
+  healthDirty.value = true
+  compareGroups.value = []
+  health.value = null
+}
+
 const applyScanResult = async (result: { tools?: ToolSummary[]; assets?: RuleAsset[] }) => {
   const nextAssets: RuleAsset[] = result.assets || []
   tools.value = result.tools || []
   assets.value = nextAssets
-  compareGroups.value = compareAssets(nextAssets)
-  await loadHealth(tools.value, nextAssets)
+  markDerivedDirty()
 
   if (compareFocus.value) {
-    const refreshed = compareGroups.value.find((g) => g.slug === compareFocus.value?.slug)
-    compareFocus.value = refreshed || null
+    compareFocus.value = null
   }
 
   if (selected.value) {
@@ -1223,6 +1314,17 @@ const applyScanResult = async (result: { tools?: ToolSummary[]; assets?: RuleAss
       resetEditState()
     }
   }
+
+  // 当前 tab 需要的衍生数据再算；列表页先可交互
+  // 健康度角标需要数量：后台预热，不阻塞资产列表
+  if (tab.value === 'compare') {
+    await ensureCompareReady()
+    void ensureHealthReady()
+  } else if (tab.value === 'health') {
+    await ensureHealthReady()
+  } else {
+    void ensureHealthReady()
+  }
 }
 
 const refresh = async () => {
@@ -1233,8 +1335,7 @@ const refresh = async () => {
       if (!projectRoot.value) {
         tools.value = []
         assets.value = []
-        compareGroups.value = []
-        health.value = null
+        markDerivedDirty()
         return
       }
       const result = await window.ipcRenderer.invoke('rules:scan-project', projectRoot.value)
@@ -1450,10 +1551,14 @@ const saveEdit = async () => {
     }
     const idx = assets.value.findIndex((a) => a.id === selected.value?.id)
     if (idx >= 0 && selected.value) {
-      assets.value[idx] = { ...selected.value }
+      const next = assets.value.slice()
+      next[idx] = { ...selected.value }
+      assets.value = next
     }
-    compareGroups.value = compareAssets(assets.value)
-    await loadHealth(tools.value, assets.value)
+    markDerivedDirty()
+    if (tab.value === 'compare') await ensureCompareReady()
+    if (tab.value === 'health') await ensureHealthReady()
+    else void ensureHealthReady()
     ElMessage.success('已保存')
     isEditing.value = false
   } catch (error: any) {
@@ -1608,11 +1713,18 @@ onMounted(async () => {
   } catch {
     projectRoot.value = null
   }
-  refresh()
+  // App 使用 keep-alive：切回本页不会再次挂载。
+  // 仅冷启动 / 首次进入自动扫描；之后靠「重新扫描」或切换全局/项目作用域。
+  if (loading.value || tools.value.length > 0 || assets.value.length > 0) return
+  await refresh()
 })
 
 onBeforeUnmount(() => {
   stopResize()
+  if (keywordTimer) {
+    clearTimeout(keywordTimer)
+    keywordTimer = null
+  }
 })
 </script>
 
@@ -1832,8 +1944,16 @@ onBeforeUnmount(() => {
 .list-pane {
   width: 300px;
   flex-shrink: 0;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   border-right: none;
+}
+
+.virt-fill {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 
 .split-handle {
@@ -1875,6 +1995,8 @@ onBeforeUnmount(() => {
 }
 
 .asset-row {
+  height: 100%;
+  box-sizing: border-box;
   padding: 12px 14px;
   border-bottom: 1px solid var(--cz-border);
   cursor: pointer;
@@ -2043,7 +2165,9 @@ onBeforeUnmount(() => {
   flex: 0 0 360px;
   max-width: 45%;
   min-width: 0;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   padding-right: 2px;
 }
 
@@ -2059,12 +2183,15 @@ onBeforeUnmount(() => {
 }
 
 .compare-summary {
+  flex-shrink: 0;
   margin-bottom: 12px;
   font-size: 12px;
   color: var(--cz-text-tertiary);
 }
 
 .compare-card {
+  height: calc(100% - 10px);
+  box-sizing: border-box;
   padding: 12px 14px;
   margin-bottom: 10px;
   border-radius: 14px;
@@ -2072,6 +2199,7 @@ onBeforeUnmount(() => {
   background: var(--cz-surface-secondary);
   cursor: pointer;
   transition: border-color var(--cz-transition), box-shadow var(--cz-transition), background-color var(--cz-transition);
+  overflow: hidden;
 }
 
 .compare-card.active {
@@ -2138,12 +2266,17 @@ onBeforeUnmount(() => {
 
 .compare-asset-path {
   min-width: 0;
-  flex: 1;
-  font-size: 12px;
-  color: var(--cz-text-secondary);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--cz-text-secondary);
+}
+
+.compare-more {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--cz-text-tertiary);
 }
 
 .compare-card-actions {
@@ -2227,7 +2360,9 @@ onBeforeUnmount(() => {
   flex: 0 0 360px;
   max-width: 45%;
   min-width: 0;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .health-detail {
@@ -2284,6 +2419,7 @@ onBeforeUnmount(() => {
 }
 
 .health-summary {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -2314,6 +2450,8 @@ onBeforeUnmount(() => {
 }
 
 .health-card {
+  height: calc(100% - 10px);
+  box-sizing: border-box;
   padding: 12px 14px;
   margin-bottom: 10px;
   border-radius: 14px;
@@ -2321,6 +2459,7 @@ onBeforeUnmount(() => {
   background: var(--cz-surface-secondary);
   cursor: pointer;
   transition: border-color var(--cz-transition), background-color var(--cz-transition), box-shadow var(--cz-transition);
+  overflow: hidden;
 }
 
 .health-card:hover {

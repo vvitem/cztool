@@ -99,7 +99,9 @@
           <WindowControls v-if="!isMac" position="title" />
         </div>
         <div class="main_content_content">
-          <component :is="activeItem.component" />
+          <keep-alive>
+            <component :is="activeItem.component" :key="activeItem.id" />
+          </keep-alive>
         </div>
       </el-main>
     </el-container>
