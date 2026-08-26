@@ -285,9 +285,10 @@ const handleUpdateStatus = async (status: { type: string; version?: string; mess
 
 onMounted(async () => {
   try {
-    const status = await invoke('unlock:get-status')
+    const status = await invoke<{ locked?: boolean }>('unlock:get-status')
     locked.value = !!status?.locked
-  } catch {
+  } catch (err) {
+    console.error('[unlock] get-status failed', err)
     locked.value = true
   }
   if (!locked.value) {

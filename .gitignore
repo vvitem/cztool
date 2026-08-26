@@ -69,6 +69,10 @@ temp/
 *.unpacked/
 *.blockmap
 
+# === Tauri 更新签名私钥（公钥 .key.pub 可提交；私钥勿进库） ===
+src-tauri/.keys/*.key
+src-tauri/target/
+
 # === 模板 / 本地杂项（与业务无关） ===
 wallpapers/
 electron-vite-vue.gif

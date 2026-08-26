@@ -1,5 +1,4 @@
 use serde_json::{json, Value};
-use tauri::AppHandle;
 
 #[tauri::command]
 pub async fn douyin_parse(payload: String) -> Result<Value, String> {
@@ -59,34 +58,4 @@ pub async fn fetch_qq_nickname(payload: String) -> Result<Value, String> {
   }
 
   serde_json::from_str(&text).or_else(|_| Ok(json!({ "raw": text })))
-}
-
-#[tauri::command]
-pub fn update_get_version(app: AppHandle) -> String {
-  app.package_info().version.to_string()
-}
-
-/// Phase 1 stub — full updater lands in Phase 3
-#[tauri::command]
-pub fn update_get_settings() -> Value {
-  json!({ "autoCheck": false })
-}
-
-#[tauri::command]
-pub fn update_set_auto_check(payload: bool) -> Value {
-  json!({ "autoCheck": payload })
-}
-
-#[tauri::command]
-pub fn update_check() -> Value {
-  json!({
-    "ok": false,
-    "manual": true,
-    "message": "Tauri 自动更新将在 Phase 3 接入",
-  })
-}
-
-#[tauri::command]
-pub fn update_quit_and_install() -> Result<(), String> {
-  Err("Tauri 自动更新将在 Phase 3 接入".into())
 }

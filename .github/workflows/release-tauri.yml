@@ -1,0 +1,77 @@
+# Tauri Release（vvitem/cztool）
+
+# Electron 热更用 latest.yml；Tauri 用 latest.json + 签名产物，旧 Electron 客户端无法热更到本产物。
+# 触发：推送 tag（例如 v30.0.0）到本仓库；发布目标默认公开仓 vvitem/cztool。
+
+name: Release Tauri
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            args: ""
+          - platform: windows-latest
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Linux deps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend deps
+        run: npm install
+
+      - name: Build & upload
+        uses: tauri-apps/tauri-action@v0
+        env:
+          # 发布到公开仓 vvitem/cztool 时需配置有 repo 写权限的 PAT
+          GITHUB_TOKEN: ${{ secrets.CZTOOL_RELEASE_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: CZTool ${{ github.ref_name }}
+          releaseBody: |
+            Tauri 桌面端发布。
+
+            - 安装包与 `latest.json` 供 Tauri 客户端自动更新
+            - 旧 Electron 安装包无法热更到此版本，请手动安装一次
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+          # 若发布到公开仓而非本私有仓，配置 owner/repo 与有写权限的 token
+          owner: vvitem
+          repo: cztool
+          projectPath: .

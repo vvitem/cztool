@@ -1,9 +1,11 @@
 mod history;
 mod http_tools;
 mod paths;
+mod rules;
 mod settings;
 mod system_info;
 mod unlock;
+mod update;
 
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
@@ -42,6 +44,9 @@ fn desktop_runtime() -> String {
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_process::init())
+    .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
       if let Some(win) = app.get_webview_window("main") {
         let _ = win.unminimize();
@@ -64,6 +69,9 @@ pub fn run() {
 
       let db = history::init_db(app.handle())?;
       app.manage(db);
+      app.manage(rules::RulesProjectState(std::sync::Mutex::new(None)));
+      app.manage(update::UpdateState::default());
+      update::schedule_auto_update_check(app.handle().clone(), 4000);
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -84,13 +92,26 @@ pub fn run() {
       system_info::system_machine_info,
       http_tools::douyin_parse,
       http_tools::fetch_qq_nickname,
-      http_tools::update_get_version,
-      http_tools::update_get_settings,
-      http_tools::update_set_auto_check,
-      http_tools::update_check,
-      http_tools::update_quit_and_install,
+      update::update_get_version,
+      update::update_get_settings,
+      update::update_set_auto_check,
+      update::update_check,
+      update::update_quit_and_install,
       settings::settings_get_auto_launch,
       settings::settings_set_auto_launch,
+      rules::rules_scan,
+      rules::rules_health,
+      rules::rules_read,
+      rules::rules_write,
+      rules::rules_reveal,
+      rules::rules_open,
+      rules::rules_compare,
+      rules::rules_create,
+      rules::rules_sync,
+      rules::rules_get_project,
+      rules::rules_clear_project,
+      rules::rules_pick_project,
+      rules::rules_scan_project,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
