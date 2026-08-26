@@ -1,6 +1,6 @@
 {
   "name": "cztool",
-  "version": "28.4.1",
+  "version": "28.4.2",
   "main": "dist-electron/main/index.js",
   "description": "Really simple Electron + Vue + Vite boilerplate.",
   "author": "ol",
@@ -64,19 +64,28 @@
         "repo": "cztool"
       }
     ],
+    "asar": true,
     "files": [
-      "**/*",
-      "!.codegraph/**",
-      "!.worktrees/**",
-      "!.superpowers/**",
-      "!docs/**",
-      "!release/**",
-      "!resources/ffmpeg/**",
-      "!node_modules/electron/**",
-      "!node_modules/electron-builder/**",
-      "!services/**",
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json",
+      "!src/**/*",
+      "!electron/**/*",
+      "!services/**/*",
+      "!docs/**/*",
+      "!test_data/**/*",
+      "!release/**/*",
+      "!resources/**/*",
+      "!.codegraph/**/*",
+      "!.cursor/**/*",
+      "!.vscode/**/*",
+      "!.github/**/*",
       "!.env",
-      "!.env.*"
+      "!.env.*",
+      "!index.js",
+      "!**/*.{ts,tsx,vue,md,map}",
+      "!**/tsconfig*.json",
+      "!**/vite.config.*"
     ],
     "mac": {
       "target": [
@@ -87,6 +96,7 @@
       "category": "public.app-category.utilities"
     },
     "win": {
+      "artifactName": "${productName}-Setup-${version}.${ext}",
       "target": [
         {
           "target": "nsis",

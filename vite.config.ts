@@ -1,23 +1,56 @@
 import fs from 'node:fs'
-import { defineConfig, loadEnv } from 'vite'
+import path from 'node:path'
+import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import electron from 'vite-plugin-electron/simple'
 import pkg from './package.json'
+
+/** Read a key from .env* files only (ignores polluted process.env / shell exports). */
+function readEnvFileValue(mode: string, key: string): string {
+  const files = [
+    `.env.${mode}.local`,
+    `.env.local`,
+    `.env.${mode}`,
+    `.env`,
+  ]
+  for (const file of files) {
+    const full = path.join(process.cwd(), file)
+    if (!fs.existsSync(full)) continue
+    const text = fs.readFileSync(full, 'utf8')
+    const re = new RegExp(`^\\s*${key}\\s*=\\s*(.*)$`, 'm')
+    const match = text.match(re)
+    if (!match) continue
+    return match[1].trim().replace(/^['"]|['"]$/g, '')
+  }
+  return ''
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
   fs.rmSync('dist-electron', { recursive: true, force: true })
 
-  const env = loadEnv(mode, process.cwd(), '')
-  const unlockApiUrl = process.env.CZTOOL_UNLOCK_API_URL
-    || process.env.VITE_UNLOCK_API_URL
-    || env.CZTOOL_UNLOCK_API_URL
-    || env.VITE_UNLOCK_API_URL
+  // loadEnv merges process.env over .env files — stale shell VITE_* (e.g. old
+  // workers.dev) would otherwise win and break unlock on CN networks.
+  // Read .env* ourselves; only CZTOOL_UNLOCK_API_URL is an explicit CI override.
+  const unlockApiUrl = (
+    process.env.CZTOOL_UNLOCK_API_URL
+    || readEnvFileValue(mode, 'VITE_UNLOCK_API_URL')
+    || readEnvFileValue(mode, 'CZTOOL_UNLOCK_API_URL')
     || ''
+  ).trim().replace(/\/$/, '')
 
   const isServe = command === 'serve'
   const isBuild = command === 'build'
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG
+
+  if (isBuild && !unlockApiUrl) {
+    throw new Error(
+      '[build] VITE_UNLOCK_API_URL is empty — set it in .env before packaging',
+    )
+  }
+  if (isBuild) {
+    console.log(`[build] unlock API → ${unlockApiUrl}`)
+  }
 
   return {
     plugins: [
