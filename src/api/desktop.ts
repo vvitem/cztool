@@ -22,9 +22,9 @@ export function getDesktopRuntime(): DesktopRuntime {
   return 'web'
 }
 
-/** `history:add` → `history_add` */
+/** `history:add` → `history_add`；`unlock:get-status` → `unlock_get_status` */
 export function toTauriCommand(channel: string): string {
-  return channel.replace(/:/g, '_')
+  return channel.replace(/[:.-]/g, '_')
 }
 
 async function tauriInvoke<T>(channel: string, ...args: unknown[]): Promise<T> {
