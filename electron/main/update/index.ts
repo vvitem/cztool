@@ -1,6 +1,9 @@
 import { BrowserWindow, app, ipcMain } from 'electron'
-import { autoUpdater } from 'electron-updater'
+// electron-updater 是 CommonJS，ESM 下需从 default 解构，不能直接 named import
+import electronUpdater from 'electron-updater'
 import { readUpdateSettings, writeUpdateSettings } from './settings'
+
+const { autoUpdater } = electronUpdater
 
 export type UpdateStatus =
   | { type: 'checking' }
