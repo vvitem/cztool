@@ -49,8 +49,8 @@
           <el-table-column prop="content" label="内容" min-width="280">
             <template #default="{ row }">
               <div class="content-cell">
-                <template v-if="isVideoParseModule(row.moduleName) && row.status === 'success'">
-                  <div class="content-summary">{{ parseDouyinContent(row.content) }}</div>
+                <template v-if="isVideoParseModule(row.moduleName) && row.status === 'success' && getDouyinLinks(row.content).length">
+                  <div class="content-summary">{{ summarizeHistoryContent(row) }}</div>
                   <div class="chip-row">
                     <button
                       v-for="link in getDouyinLinks(row.content)"
@@ -64,16 +64,17 @@
                   </div>
                 </template>
 
-                <template v-else-if="row.moduleName === '短链生成'">
+                <template v-else-if="row.moduleName === '短链生成' && parseContent(row.content).shortUrl">
                   <div class="shortlink-block">
                     <button
                       type="button"
                       class="link-chip primary"
                       @click.stop="openLink(parseContent(row.content).shortUrl)"
                     >
-                      {{ parseContent(row.content).shortUrl || '—' }}
+                      {{ parseContent(row.content).shortUrl }}
                     </button>
                     <div
+                      v-if="parseContent(row.content).originalUrl"
                       class="origin-line"
                       @click.stop="openLink(parseContent(row.content).originalUrl)"
                     >
@@ -83,8 +84,8 @@
                   </div>
                 </template>
 
-                <template v-else-if="row.moduleName === 'share'">
-                  <div v-if="row.status === 'success'" class="share-block">
+                <template v-else-if="row.moduleName === 'share' && row.status === 'success' && parseContent(row.content).shareUrl">
+                  <div class="share-block">
                     <div class="share-title">
                       <template v-if="isFileShare(row)">
                         {{ parseContent(row.content).sourceFileName || '文件' }}
@@ -98,15 +99,12 @@
                       class="link-chip primary"
                       @click.stop="openLink(parseContent(row.content).shareUrl)"
                     >
-                      {{ parseContent(row.content).shareUrl || '—' }}
+                      {{ parseContent(row.content).shareUrl }}
                     </button>
                   </div>
-                  <span v-else class="error-text">
-                    {{ parseContent(row.content).error || '分享失败' }}
-                  </span>
                 </template>
 
-                <span v-else class="content-summary">{{ formatContent(row) }}</span>
+                <span v-else class="content-summary">{{ summarizeHistoryContent(row) }}</span>
               </div>
             </template>
           </el-table-column>
@@ -170,13 +168,27 @@
 
     <el-dialog
       v-model="dialogVisible"
-      title="详细信息"
-      width="560px"
-      class="cz-tool-dialog"
+      :width="detailMeta.width"
+      :class="['cz-tool-dialog', `tone-${detailMeta.tone}`]"
       destroy-on-close
       align-center
+      :show-close="true"
+      :close-on-click-modal="true"
+      :close-on-press-escape="true"
     >
-      <div v-if="selectedRow" class="detail-content">
+      <template #header>
+        <div class="dialog-heading">
+          <span class="dialog-heading-mark" :class="detailMeta.tone">
+            <el-icon><component :is="detailMeta.icon" /></el-icon>
+          </span>
+          <div>
+            <div class="dialog-heading-title">{{ detailMeta.title }}</div>
+            <div class="dialog-heading-sub">{{ detailMeta.sub }}</div>
+          </div>
+        </div>
+      </template>
+
+      <div v-if="selectedRow" class="cz-dialog-body history-detail-body">
         <template v-if="isVideoParseModule(selectedRow.moduleName)">
           <DouyinDetail :record="selectedRow" />
         </template>
@@ -189,31 +201,51 @@
         <template v-else-if="selectedRow.moduleName === 'share'">
           <ShareDetail :record="selectedRow" />
         </template>
+        <template v-else-if="selectedRow.moduleName === '节假日查询'">
+          <HolidayDetail :record="selectedRow" />
+        </template>
+        <template v-else-if="selectedRow.moduleName === '地址模拟'">
+          <AddressMockDetail :record="selectedRow" />
+        </template>
         <template v-else>
-          <div class="fallback-detail">
-            <div class="fallback-row">
-              <span class="fallback-label">模块</span>
+          <div class="cz-history-detail">
+            <div class="hd-meta">
               <span class="soft-tag" :class="'tone-' + getModuleTone(selectedRow.moduleName)">
                 {{ selectedRow.moduleName }}
               </span>
-            </div>
-            <div class="fallback-row">
-              <span class="fallback-label">应用</span>
-              <span>{{ selectedRow.appName }}</span>
-            </div>
-            <div class="fallback-row">
-              <span class="fallback-label">状态</span>
-              <span class="soft-tag" :class="'status-' + selectedRow.status">
+              <span class="hd-pill" :class="'status-' + selectedRow.status">
                 {{ getStatusText(selectedRow.status) }}
               </span>
             </div>
-            <div class="fallback-row">
-              <span class="fallback-label">时间</span>
-              <span>{{ formatDate(selectedRow.operationTime) }}</span>
-            </div>
-            <div class="fallback-block">
-              <div class="fallback-label">内容</div>
-              <pre class="fallback-pre">{{ selectedRow.content }}</pre>
+            <div class="hd-card">
+              <div class="hd-field">
+                <div class="hd-label">应用</div>
+                <div class="hd-value-row">
+                  <span class="hd-value-text">{{ selectedRow.appName }}</span>
+                </div>
+              </div>
+              <div class="hd-field">
+                <div class="hd-label">时间</div>
+                <div class="hd-value-row">
+                  <span class="hd-value-text">{{ formatDate(selectedRow.operationTime) }}</span>
+                </div>
+              </div>
+              <template v-if="detailFields(selectedRow.content).length">
+                <div
+                  v-for="item in detailFields(selectedRow.content)"
+                  :key="item.key"
+                  class="hd-field"
+                >
+                  <div class="hd-label">{{ item.key }}</div>
+                  <div class="hd-value-row">
+                    <span class="hd-value-text" :class="{ mono: item.mono }">{{ item.value }}</span>
+                  </div>
+                </div>
+              </template>
+              <div v-else class="hd-field">
+                <div class="hd-label">内容</div>
+                <pre class="hd-preview">{{ selectedRow.content }}</pre>
+              </div>
             </div>
           </div>
         </template>
@@ -223,31 +255,121 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onActivated } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import DouyinDetail from './history/DouyinDetail.vue'
 import QQQueryDetail from './history/QQQueryDetail.vue'
 import ShortLinkDetail from './history/ShortLinkDetail.vue'
 import ShareDetail from './history/ShareDetail.vue'
-import { Clock, Delete } from '@element-plus/icons-vue'
+import HolidayDetail from './history/HolidayDetail.vue'
+import AddressMockDetail from './history/AddressMockDetail.vue'
+import {
+  Clock,
+  Delete,
+  Search,
+  VideoCamera,
+  Link,
+  Upload,
+  Calendar,
+  Location,
+  Document,
+} from '@element-plus/icons-vue'
+import type { Component } from 'vue'
 import { invoke, openExternal } from '../api/desktop'
-
-interface HistoryRecord {
-  id: number
-  moduleName: string
-  appName: string
-  content: string
-  operationTime: number
-  status: 'success' | 'error' | 'running'
-  contentType?: string
-  createTime?: string
-}
+import type { HistoryRecord } from '../types'
 
 const historyList = ref<HistoryRecord[]>([])
 const dialogVisible = ref(false)
 const selectedRow = ref<HistoryRecord | null>(null)
 const loading = ref(false)
 const clearingAll = ref(false)
+
+const detailMeta = computed(() => {
+  const row = selectedRow.value
+  const moduleName = row?.moduleName || ''
+  const map: Record<string, { title: string; sub: string; tone: string; icon: Component; width: string }> = {
+    QQ查询: { title: 'QQ 查询详情', sub: '头像、昵称与关联信息', tone: 'blue', icon: Search, width: '560px' },
+    视频解析: { title: '视频解析详情', sub: '标题、链接与清晰度', tone: 'cyan', icon: VideoCamera, width: '580px' },
+    抖音去水印: { title: '视频解析详情', sub: '标题、链接与清晰度', tone: 'cyan', icon: VideoCamera, width: '580px' },
+    抖音解析: { title: '视频解析详情', sub: '标题、链接与清晰度', tone: 'cyan', icon: VideoCamera, width: '580px' },
+    短链生成: { title: '短链详情', sub: '短链与原始网址', tone: 'indigo', icon: Link, width: '560px' },
+    share: { title: '文件分享详情', sub: '托管链接与文件信息', tone: 'cyan', icon: Upload, width: '560px' },
+    节假日查询: { title: '节假日查询', sub: '假期与长周末明细', tone: 'amber', icon: Calendar, width: '560px' },
+    地址模拟: { title: '地址模拟详情', sub: '测试地址明细', tone: 'slate', icon: Location, width: '620px' },
+  }
+  return map[moduleName] || {
+    title: '记录详情',
+    sub: moduleName || '历史记录',
+    tone: 'slate',
+    icon: Document,
+    width: '520px',
+  }
+})
+
+const formatHolidaySummary = (raw: string) => {
+  try {
+    const data = JSON.parse(raw)
+    const parts = [
+      data.country ? `国家 ${String(data.country).toUpperCase()}` : '',
+      data.mode === 'longWeekends' ? '长周末' : '公共假期',
+      data.year ? `${data.year} 年` : '',
+      data.count != null ? `${data.count} 条` : '',
+    ].filter(Boolean)
+    return parts.join(' · ') || '节假日查询'
+  } catch {
+    return '节假日查询'
+  }
+}
+
+/** 详情弹窗：把 JSON 拆成具体字段，不做一行摘要 */
+const detailFields = (raw: string): Array<{ key: string; value: string; mono?: boolean }> => {
+  try {
+    const data = JSON.parse(raw)
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return []
+    return Object.entries(data).map(([key, value]) => {
+      let text: string
+      if (value == null) text = '—'
+      else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        text = String(value)
+      } else {
+        text = JSON.stringify(value, null, 2)
+      }
+      return {
+        key,
+        value: text,
+        mono: typeof value === 'object' || (typeof value === 'string' && /https?:\/\//.test(value)),
+      }
+    })
+  } catch {
+    return []
+  }
+}
+
+const looksLikeJson = (text: string) => {
+  const t = text.trim()
+  return (t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))
+}
+
+const clipText = (text: string, max = 80) => {
+  const t = text.trim()
+  if (!t) return ''
+  if (looksLikeJson(t)) return ''
+  return t.length > max ? `${t.slice(0, max)}…` : t
+}
+
+const parseDouyinContent = (content: string) => {
+  try {
+    const data = JSON.parse(content)
+    if (!data || typeof data !== 'object') return '视频解析'
+    if (data.error) return `失败: ${String(data.error)}`
+
+    const title = String(data.title || data.desc || '无标题')
+    const type = data.type ? ` · ${data.type}` : ''
+    return `${title}${type}`
+  } catch {
+    return '视频解析'
+  }
+}
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -261,7 +383,9 @@ const getModuleTone = (moduleName: string) => {
     抖音去水印: 'cyan',
     抖音解析: 'cyan',
     短链生成: 'indigo',
-    share: 'green',
+    节假日查询: 'amber',
+    地址模拟: 'slate',
+    share: 'cyan',
   }
   return map[moduleName] || 'slate'
 }
@@ -277,20 +401,6 @@ const getStatusText = (status: string) => {
     running: '运行中',
   }
   return texts[status] || '未知'
-}
-
-const parseDouyinContent = (content: string) => {
-  try {
-    const data = JSON.parse(content)
-    if (!data) return content
-    if (data.error) return `失败: ${data.error}`
-
-    const title = data.title || data.desc || '无标题'
-    const type = data.type ? ` · ${data.type}` : ''
-    return `${title}${type}`
-  } catch {
-    return content
-  }
 }
 
 const getDouyinLinks = (content: string) => {
@@ -414,7 +524,7 @@ const handleCurrentChange = (val: number) => {
   getHistoryList()
 }
 
-onMounted(() => {
+onActivated(() => {
   getHistoryList()
 })
 
@@ -428,21 +538,85 @@ const parseContent = (content: string) => {
   }
 }
 
-const formatContent = (row: HistoryRecord) => {
+const summarizeHistoryContent = (row: HistoryRecord) => {
+  const raw = typeof row.content === 'string' ? row.content.trim() : ''
+  if (!raw) return '—'
+
+  let data: Record<string, any> | null = null
   try {
-    if (row.moduleName === 'QQ查询') {
-      const data = JSON.parse(row.content)
-      if (row.status === 'success') {
-        const phones = Array.isArray(data.phones) && data.phones.length
-          ? data.phones.join('、')
-          : (data.phone || '')
-        return `QQ: ${data.qq}${data.nickname ? ' · ' + data.nickname : ''}${phones ? ' · ' + phones : ''}${data.phonediqu ? ' · ' + data.phonediqu : ''}`
-      }
-      return data.error || '查询失败'
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      data = parsed
+    } else if (Array.isArray(parsed)) {
+      return `${row.appName || row.moduleName} · ${parsed.length} 项`
     }
-    return row.content
   } catch {
-    return row.content
+    return clipText(raw) || `${row.appName || row.moduleName} · 查看详情`
+  }
+
+  if (row.status === 'error') {
+    const err = data?.error || data?.message
+    if (typeof err === 'string' && err.trim() && !looksLikeJson(err)) {
+      return clipText(err) || '操作失败'
+    }
+    const plain = clipText(raw)
+    if (plain) return plain
+    return '操作失败'
+  }
+
+  switch (row.moduleName) {
+    case 'QQ查询': {
+      const phones = Array.isArray(data?.phones) && data!.phones.length
+        ? data!.phones.map(String).join('、')
+        : (data?.phone ? String(data.phone) : '')
+      const parts = [
+        data?.qq ? `QQ ${data.qq}` : '',
+        data?.nickname ? String(data.nickname) : '',
+        phones,
+        data?.phonediqu ? String(data.phonediqu) : '',
+      ].filter(Boolean)
+      return parts.join(' · ') || 'QQ 查询'
+    }
+    case '节假日查询':
+      return formatHolidaySummary(raw)
+    case '地址模拟': {
+      if (data?.error && typeof data.error === 'string') {
+        return clipText(data.error) || '地址生成失败'
+      }
+      const typeLabel = data?.typeLabel || data?.type || '地址'
+      const n = Array.isArray(data?.results) ? data.results.length : data?.count
+      return n != null ? `${typeLabel} · ${n} 条` : String(typeLabel)
+    }
+    case '短链生成':
+      return String(data?.shortUrl || data?.originalUrl || '短链记录')
+    case 'share': {
+      if (data?.error && typeof data.error === 'string') return clipText(data.error) || '分享失败'
+      return String(
+        data?.sourceFileName || data?.fileName || data?.textPreview || data?.shareUrl || '分享记录',
+      )
+    }
+    default: {
+      if (isVideoParseModule(row.moduleName)) {
+        return parseDouyinContent(raw)
+      }
+      const candidates = [
+        data?.title,
+        data?.name,
+        data?.desc,
+        data?.nickname,
+        data?.shortUrl,
+        data?.shareUrl,
+        data?.url,
+        data?.qq ? `QQ ${data.qq}` : '',
+      ]
+      for (const c of candidates) {
+        if (typeof c === 'string' && c.trim() && !looksLikeJson(c)) {
+          return clipText(c) || `${row.appName || row.moduleName} · 查看详情`
+        }
+      }
+      if (data?.country) return formatHolidaySummary(raw)
+      return `${row.appName || row.moduleName} · 查看详情`
+    }
   }
 }
 
@@ -609,6 +783,12 @@ const isFileShare = (row: HistoryRecord) => {
   color: #4f46e5;
   background: rgba(99, 102, 241, 0.1);
   border-color: rgba(99, 102, 241, 0.14);
+}
+
+.tone-amber {
+  color: #d97706;
+  background: var(--cz-warning-soft);
+  border-color: rgba(245, 158, 11, 0.18);
 }
 
 .tone-green {
@@ -868,43 +1048,8 @@ const isFileShare = (row: HistoryRecord) => {
   overflow-y: auto;
 }
 
-.fallback-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.fallback-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--cz-text-secondary);
-}
-
-.fallback-label {
-  width: 42px;
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--cz-text-tertiary);
-}
-
-.fallback-block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.fallback-pre {
-  margin: 0;
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--cz-surface-tertiary);
-  border: 1px solid var(--cz-border);
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 12px;
-  color: var(--cz-text-secondary);
+.history-detail-body {
+  padding-bottom: 20px;
 }
 
 @media (prefers-reduced-motion: reduce) {

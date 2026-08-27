@@ -67,6 +67,12 @@ pub fn run() {
         )?;
       }
 
+      // 运行时强制设置窗口/任务栏图标，避免开发态或缓存仍显示旧图标
+      let icon = tauri::include_image!("icons/128x128.png");
+      if let Some(win) = app.get_webview_window("main") {
+        let _ = win.set_icon(icon);
+      }
+
       let db = history::init_db(app.handle())?;
       app.manage(db);
       app.manage(rules::RulesProjectState(std::sync::Mutex::new(None)));
@@ -93,6 +99,17 @@ pub fn run() {
       http_tools::douyin_parse,
       http_tools::qq_search,
       http_tools::fetch_qq_nickname,
+      http_tools::short_link_create,
+      http_tools::barcode_generate,
+      http_tools::barcode_save,
+      http_tools::holiday_query,
+      http_tools::address_mock_generate,
+      http_tools::file_share_pick,
+      http_tools::file_share_upload,
+      http_tools::file_share_delete,
+      http_tools::meme_get_templates,
+      http_tools::weather_current,
+      http_tools::sports_picks_query,
       update::update_get_version,
       update::update_get_settings,
       update::update_set_auto_check,

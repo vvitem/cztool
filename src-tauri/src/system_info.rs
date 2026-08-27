@@ -1,72 +1,63 @@
 use serde_json::{json, Value};
-use std::process::Command;
-use sysinfo::System;
+use sysinfo::{DiskKind, Disks, System};
 use tauri::AppHandle;
 
 fn disk_usage() -> Option<Value> {
-  #[cfg(target_os = "windows")]
-  {
-    let output = Command::new("wmic")
-      .args([
-        "logicaldisk",
-        "where",
-        "DeviceID='C:'",
-        "get",
-        "Size,FreeSpace",
-        "/format:value",
-      ])
-      .output()
-      .ok()?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let free = stdout
-      .lines()
-      .find_map(|l| l.strip_prefix("FreeSpace="))
-      .and_then(|v| v.trim().parse::<u64>().ok())?;
-    let total = stdout
-      .lines()
-      .find_map(|l| l.strip_prefix("Size="))
-      .and_then(|v| v.trim().parse::<u64>().ok())?;
-    if total == 0 {
-      return None;
-    }
-    return Some(json!({
-      "mount": "C:",
-      "total": total,
-      "free": free,
-      "used": total.saturating_sub(free),
-    }));
+  let disks = Disks::new_with_refreshed_list();
+  let list = disks.list();
+  if list.is_empty() {
+    return None;
   }
 
-  #[cfg(not(target_os = "windows"))]
-  {
-    let targets: &[&str] = if cfg!(target_os = "macos") {
-      &["/System/Volumes/Data", "/"]
-    } else {
-      &["/"]
-    };
-    for target in targets {
-      let output = Command::new("df").args(["-kP", target]).output().ok()?;
-      let stdout = String::from_utf8_lossy(&output.stdout);
-      let line = stdout.lines().last()?.trim();
-      let parts: Vec<&str> = line.split_whitespace().collect();
-      if parts.len() < 6 {
-        continue;
+  let preferred: &[&str] = if cfg!(target_os = "windows") {
+    &["C:\\", "C:/", "C:"]
+  } else if cfg!(target_os = "macos") {
+    &["/System/Volumes/Data", "/"]
+  } else {
+    &["/"]
+  };
+
+  let mut chosen = None;
+  for mount in preferred {
+    if let Some(disk) = list.iter().find(|d| {
+      let p = d.mount_point().to_string_lossy();
+      p.eq_ignore_ascii_case(mount) || p.trim_end_matches(['\\', '/']).eq_ignore_ascii_case(mount.trim_end_matches(['\\', '/']))
+    }) {
+      if disk.total_space() > 0 {
+        chosen = Some(disk);
+        break;
       }
-      let total_kb = parts[1].parse::<u64>().ok()?;
-      let used_kb = parts[2].parse::<u64>().ok()?;
-      let free_kb = parts[3].parse::<u64>().ok()?;
-      if total_kb == 0 {
-        continue;
-      }
-      return Some(json!({
-        "mount": parts[5],
-        "total": total_kb * 1024,
-        "used": used_kb * 1024,
-        "free": free_kb * 1024,
-      }));
     }
-    None
   }
+
+  if chosen.is_none() {
+    chosen = list
+      .iter()
+      .filter(|d| {
+        d.total_space() > 0
+          && !matches!(d.kind(), DiskKind::Unknown(_))
+          && !d.mount_point().to_string_lossy().contains("loop")
+      })
+      .max_by_key(|d| d.total_space());
+  }
+
+  if chosen.is_none() {
+    chosen = list.iter().filter(|d| d.total_space() > 0).max_by_key(|d| d.total_space());
+  }
+
+  let disk = chosen?;
+  let total = disk.total_space();
+  if total == 0 {
+    return None;
+  }
+  let free = disk.available_space();
+  let mount = disk.mount_point().to_string_lossy().trim_end_matches('\\').to_string();
+  Some(json!({
+    "mount": mount,
+    "total": total,
+    "free": free,
+    "used": total.saturating_sub(free),
+  }))
 }
 
 #[tauri::command]

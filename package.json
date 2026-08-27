@@ -1,6 +1,6 @@
 {
   "name": "cztool",
-  "version": "30.0.0",
+  "version": "30.1.0",
   "description": "CZTool desktop toolbox (Tauri + Vue 3)",
   "author": "ol",
   "license": "MIT",

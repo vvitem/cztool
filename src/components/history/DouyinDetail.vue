@@ -1,25 +1,133 @@
+<template>
+  <div class="cz-history-detail">
+    <div class="hd-meta">
+      <span class="hd-pill" :class="'status-' + (record.status || 'info')">
+        {{ historyStatusText(record.status) }}
+      </span>
+      <span class="hd-time">
+        <el-icon><Clock /></el-icon>
+        {{ formatHistoryTime(record.operationTime) }}
+      </span>
+    </div>
+
+    <div class="hd-hero">
+      <img
+        v-if="content.cover"
+        :src="content.cover"
+        class="hd-avatar"
+        alt="封面"
+      />
+      <div v-else class="hd-avatar" />
+      <div style="min-width: 0">
+        <div class="hd-hero-title">{{ content.title }}</div>
+        <div class="hd-hero-sub">
+          {{ content.author || '未知作者' }}
+          <template v-if="content.type"> · {{ content.type }}</template>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="content.error && record.status !== 'success'" class="hd-card">
+      <el-alert :title="content.error" type="error" :closable="false" show-icon />
+    </div>
+
+    <template v-else>
+      <div class="hd-card">
+        <div class="hd-field">
+          <div class="hd-label">标题</div>
+          <div class="hd-value-row">
+            <span class="hd-value-text">{{ content.title }}</span>
+            <el-button text type="primary" :icon="CopyDocument" @click="copyText(content.title, '标题已复制')" />
+          </div>
+        </div>
+
+        <div class="hd-field" v-if="content.originalUrl">
+          <div class="hd-label">原始链接</div>
+          <div class="hd-value-row">
+            <span class="hd-value-text mono linkish" @click="openUrl(content.originalUrl)">
+              {{ content.originalUrl }}
+            </span>
+            <el-button
+              text
+              type="primary"
+              :icon="CopyDocument"
+              @click="copyText(content.originalUrl, '链接已复制')"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div v-if="content.hasStats" class="hd-card">
+        <div class="hd-section-title">数据</div>
+        <div class="hd-stats">
+          <div class="hd-stat">
+            <div class="hd-stat-label">点赞</div>
+            <div class="hd-stat-value">{{ content.statistics.digg || 0 }}</div>
+          </div>
+          <div class="hd-stat">
+            <div class="hd-stat-label">评论</div>
+            <div class="hd-stat-value">{{ content.statistics.comment || 0 }}</div>
+          </div>
+          <div class="hd-stat">
+            <div class="hd-stat-label">收藏</div>
+            <div class="hd-stat-value">{{ content.statistics.collect || 0 }}</div>
+          </div>
+          <div class="hd-stat">
+            <div class="hd-stat-label">分享</div>
+            <div class="hd-stat-value">{{ content.statistics.share || 0 }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="content.videoUrls.length || content.audioUrl"
+        class="hd-card"
+      >
+        <div class="hd-section-title">清晰度 / 打开</div>
+        <div class="hd-actions">
+          <el-button
+            v-for="link in content.videoUrls"
+            :key="link.url + link.label"
+            type="primary"
+            size="small"
+            @click="openUrl(link.url)"
+          >
+            <el-icon class="btn-icon"><VideoPlay /></el-icon>
+            {{ link.label }}
+          </el-button>
+          <el-button
+            v-if="content.audioUrl"
+            size="small"
+            @click="openUrl(content.audioUrl)"
+          >
+            <el-icon class="btn-icon"><Headset /></el-icon>
+            音频
+          </el-button>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { HistoryRecord } from '../../types'
-import { ElMessage } from 'element-plus'
 import {
+  Clock,
+  CopyDocument,
   VideoCamera as VideoPlay,
   Microphone as Headset,
-  Clock,
-  Document as CopyDocument,
 } from '@element-plus/icons-vue'
+import type { HistoryRecord } from '../../types'
 import { openExternal } from '../../api/desktop'
+import { copyText, formatHistoryTime, historyStatusText } from '../../utils/toolHelpers'
 
-const props = defineProps<{
-  record: HistoryRecord
-}>()
+const props = defineProps<{ record: HistoryRecord }>()
 
 const content = computed(() => {
   try {
     const data = JSON.parse(props.record.content)
     const stats = data.statistics || {}
     const hasStats = !!(stats.digg || stats.comment || stats.collect || stats.share)
-
     return {
       title: data.title || data.desc || '无标题',
       type: data.type || '',
@@ -27,20 +135,20 @@ const content = computed(() => {
       author: data.author || '',
       statistics: stats,
       hasStats,
-      videoUrls: data.videoUrls || [],
+      videoUrls: Array.isArray(data.videoUrls) ? data.videoUrls : [],
       audioUrl: data.audioUrl || '',
       originalUrl: data.originalUrl || '',
       error: data.error,
     }
-  } catch (e) {
+  } catch {
     return {
       title: '无标题',
       type: '',
       cover: '',
       author: '',
-      statistics: {},
+      statistics: {} as Record<string, number>,
       hasStats: false,
-      videoUrls: [],
+      videoUrls: [] as { url: string; label: string }[],
       audioUrl: '',
       originalUrl: '',
       error: '解析失败',
@@ -48,328 +156,14 @@ const content = computed(() => {
   }
 })
 
-const formatDate = (timestamp: number) => {
-  return new Date(timestamp).toLocaleString()
-}
-
-const openLink = async (url: string) => {
-  try {
-    await openExternal(url)
-  } catch (error: any) {
-    ElMessage.error(error?.message || '打开链接失败')
-  }
-}
-
-const copyWithTip = (text: string, type: string) => {
-  try {
-    const textarea = document.createElement('textarea')
-    textarea.value = text
-    textarea.style.position = 'fixed'
-    textarea.style.left = '-9999px'
-    document.body.appendChild(textarea)
-    textarea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textarea)
-    ElMessage.success(`${type}已复制到剪贴板`)
-  } catch (err) {
-    ElMessage.error('复制失败')
-  }
-}
-
-const getStatusType = (status: string) => {
-  if (status === 'success') return 'success'
-  if (status === 'error') return 'danger'
-  return 'info'
-}
-
-const getStatusEffect = (status: string) => {
-  return status === 'success' ? 'light' : 'dark'
-}
-
-const getStatusText = (status: string) => {
-  if (status === 'success') return '成功'
-  if (status === 'error') return '失败'
-  return '未知'
+const openUrl = async (url: string) => {
+  if (!url) return
+  await openExternal(url)
 }
 </script>
 
-<template>
-  <div class="video-info">
-    <div class="video-desc">
-      <div class="desc-header">
-        <div class="author-info">
-          <el-avatar :src="content.cover" :size="56" class="avatar" shape="square" />
-          <div class="author-details">
-            <span class="author-name">{{ content.author || '抖音视频' }}</span>
-            <div class="meta-row">
-              <el-tag
-                :type="getStatusType(record.status)"
-                :effect="getStatusEffect(record.status)"
-                size="small"
-                class="status-tag"
-              >
-                {{ getStatusText(record.status) }}
-              </el-tag>
-              <el-tag v-if="content.type" size="small" type="info" effect="plain">
-                {{ content.type }}
-              </el-tag>
-            </div>
-          </div>
-        </div>
-        <div class="time-info">
-          <el-icon><Clock /></el-icon>
-          <span>{{ formatDate(record.operationTime) }}</span>
-        </div>
-      </div>
-
-      <div class="desc-text">
-        <div class="info-item">
-          <span class="info-label">视频标题</span>
-          <div class="info-value-container">
-            <el-tag size="large" class="value-tag">
-              <span class="desc-content">{{ content.title }}</span>
-              <el-button
-                class="copy-icon-btn"
-                type="primary"
-                link
-                @click.stop="copyWithTip(content.title, '视频标题')"
-              >
-                <el-icon><CopyDocument /></el-icon>
-              </el-button>
-            </el-tag>
-          </div>
-        </div>
-
-        <div v-if="content.originalUrl" class="info-item">
-          <span class="info-label">原始链接</span>
-          <div class="info-value-container">
-            <el-tag size="large" class="value-tag">
-              <span class="desc-content">{{ content.originalUrl }}</span>
-              <el-button
-                class="copy-icon-btn"
-                type="primary"
-                link
-                @click.stop="copyWithTip(content.originalUrl, '原始链接')"
-              >
-                <el-icon><CopyDocument /></el-icon>
-              </el-button>
-            </el-tag>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="content.hasStats" class="video-stats">
-      <div class="stat-item">
-        <span class="stat-label">点赞</span>
-        <span class="stat-value">{{ content.statistics?.digg || 0 }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">评论</span>
-        <span class="stat-value">{{ content.statistics?.comment || 0 }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">收藏</span>
-        <span class="stat-value">{{ content.statistics?.collect || 0 }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">分享</span>
-        <span class="stat-value">{{ content.statistics?.share || 0 }}</span>
-      </div>
-    </div>
-
-    <template v-if="record.status === 'success'">
-      <div class="video-actions">
-        <div class="section-label">清晰度 / 下载</div>
-        <div class="link-tags">
-          <el-button
-            v-for="link in content.videoUrls"
-            :key="link.url + link.label"
-            type="success"
-            class="action-btn"
-            @click="openLink(link.url)"
-          >
-            <el-icon><VideoPlay /></el-icon>
-            {{ link.label }}
-          </el-button>
-          <el-button
-            v-if="content.audioUrl"
-            type="warning"
-            class="action-btn"
-            @click="openLink(content.audioUrl)"
-          >
-            <el-icon><Headset /></el-icon>
-            音频
-          </el-button>
-        </div>
-      </div>
-    </template>
-    <template v-else>
-      <div class="error-message">
-        <el-alert
-          :title="content.error || '解析失败'"
-          type="error"
-          :closable="false"
-          show-icon
-        />
-      </div>
-    </template>
-  </div>
-</template>
-
 <style scoped>
-.video-info {
-  padding: 20px;
-  border-radius: 12px;
-  background: var(--cz-surface, var(--el-bg-color));
-}
-
-.video-desc {
-  margin-bottom: 16px;
-}
-
-.desc-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--cz-border, var(--el-border-color-lighter));
-  gap: 12px;
-}
-
-.author-info {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  min-width: 0;
-}
-
-.author-details {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.avatar {
-  border: 1px solid var(--cz-border, var(--el-border-color-lighter));
-  border-radius: 10px;
-  flex-shrink: 0;
-}
-
-.author-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--cz-text-primary, var(--el-text-color-primary));
-  line-height: 1.2;
-}
-
-.meta-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.status-tag {
-  font-weight: 500;
-}
-
-.time-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--cz-text-tertiary, var(--el-text-color-secondary));
-  font-size: 12px;
-  padding: 6px 10px;
-  background: var(--cz-surface-tertiary, var(--el-fill-color-light));
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-
-.info-item {
-  margin-bottom: 14px;
-}
-
-.info-label {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--cz-text-tertiary, var(--el-text-color-secondary));
-  font-size: 13px;
-}
-
-.value-tag {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  height: auto;
-  white-space: normal;
-}
-
-.desc-content {
-  flex: 1;
-  white-space: pre-wrap;
-  word-break: break-all;
-  line-height: 1.5;
-  margin-right: 8px;
-}
-
-.copy-icon-btn {
-  flex-shrink: 0;
-  padding: 4px;
-  height: 24px;
-  width: 24px;
-}
-
-.video-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 12px;
-  margin: 16px 0;
-  padding: 12px;
-  background: var(--cz-surface-tertiary, var(--el-fill-color-blank));
-  border-radius: 10px;
-  border: 1px solid var(--cz-border, var(--el-border-color-lighter));
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.stat-label {
-  color: var(--cz-text-tertiary, var(--el-text-color-secondary));
-}
-
-.stat-value {
-  font-weight: 500;
-}
-
-.section-label {
-  font-size: 13px;
-  color: var(--cz-text-tertiary, var(--el-text-color-secondary));
-  margin-bottom: 10px;
-}
-
-.link-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: auto;
-  padding: 10px 14px;
-}
-
-.error-message {
-  margin-top: 12px;
+.btn-icon {
+  margin-right: 4px;
 }
 </style>

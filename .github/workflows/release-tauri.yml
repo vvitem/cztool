@@ -66,8 +66,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CZTOOL_RELEASE_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # vite.config.ts 打包必填（也可在仓库 Secrets 覆盖）
-          CZTOOL_UNLOCK_API_URL: ${{ secrets.CZTOOL_UNLOCK_API_URL || 'https://cztu.oihome.dpdns.org' }}
+          CZTOOL_UNLOCK_API_URL: https://cztu.oihome.dpdns.org
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           releaseName: CZTool ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}

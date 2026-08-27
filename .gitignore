@@ -82,3 +82,5 @@ vite.config.flat.txt
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+src-tauri/icons/android/
+src-tauri/icons/ios/

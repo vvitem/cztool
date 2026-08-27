@@ -1,6 +1,7 @@
 <template>
-  <UnlockGate v-if="locked" @unlocked="onUnlocked" />
-  <div v-show="!locked" class="app">
+  <div v-if="gate === 'checking'" class="boot-splash" data-tauri-drag-region />
+  <UnlockGate v-else-if="gate === 'locked'" @unlocked="onUnlocked" />
+  <div v-show="gate === 'open'" class="app">
     <el-container class="main">
       <el-aside :width="sidebarWidth + 'px'" class="sidebar">
         <div
@@ -30,65 +31,87 @@
             <span class="nav-title">{{ item.title }}</span>
           </button>
         </div>
-        <div v-if="machineInfo" class="sidebar-footer no_drag">
-          <div class="machine-head">
-            <div class="machine-mark" :class="'os-' + machineInfo.platform">
-              <el-icon><Monitor /></el-icon>
+        <div v-if="machineInfo || weather" class="sidebar-footer no_drag">
+          <button
+            v-if="weather"
+            type="button"
+            class="weather-block"
+            :title="weatherHint"
+            @click="loadWeather"
+          >
+            <div class="weather-mark">
+              <el-icon><Sunny /></el-icon>
             </div>
-            <div class="machine-head-text">
-              <div class="machine-label">本机</div>
-              <div class="machine-host" :title="machineInfo.hostname">{{ machineInfo.hostname }}</div>
+            <div class="weather-text">
+              <div class="weather-place">{{ weatherPlace }}</div>
+              <div class="weather-line">
+                <span class="weather-temp">{{ weatherTemp }}°</span>
+                <span class="weather-summary">{{ weather.summary }}</span>
+              </div>
+              <div v-if="weatherMeta" class="weather-meta">{{ weatherMeta }}</div>
             </div>
-          </div>
+          </button>
 
-          <div class="machine-chips">
-            <span class="machine-chip">{{ machineInfo.platformLabel }}</span>
-            <span class="machine-chip">{{ machineInfo.arch }}</span>
-            <span class="machine-chip">{{ machineInfo.cpuCores }} 核</span>
-          </div>
+          <template v-if="machineInfo">
+            <div class="machine-head">
+              <div class="machine-mark" :class="'os-' + machineInfo.platform">
+                <svg
+                  v-if="machineInfo.platform === 'darwin'"
+                  class="os-icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"
+                  />
+                </svg>
+                <svg
+                  v-else-if="machineInfo.platform === 'win32'"
+                  class="os-icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M3 5.5 10.5 4.4v7.1H3V5.5zm8.5-.9L21 3v8.5h-9.5V4.6zM3 13.5h7.5v7.1L3 19.5v-6zm8.5 0H21V21l-9.5-1.4v-6.1z"
+                  />
+                </svg>
+                <svg
+                  v-else
+                  class="os-icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M12.5 2c-.4 0-.8.1-1.1.3-.5.3-.8.8-.8 1.4v.4c-2.3.5-4 2.5-4 4.9v1.1c-.6.2-1 .8-1 1.4v1.6c0 .7.4 1.2 1 1.4l.4 4.2c.1 1.3 1.2 2.3 2.5 2.3h5c1.3 0 2.4-1 2.5-2.3l.4-4.2c.6-.2 1-.7 1-1.4v-1.6c0-.6-.4-1.2-1-1.4V8.9c0-2.2-1.5-4.1-3.5-4.8v-.5c0-.6-.3-1.1-.8-1.4-.3-.2-.7-.3-1.1-.2zm0 2.2c.1 0 .2 0 .2.1v.6h-.5V4.3c0-.1.1-.1.3-.1zM9.6 9.1h4.8c1.2 0 2.1 1 2.1 2.1v.9H7.5v-.9c0-1.1.9-2.1 2.1-2.1zm.9 9.1c-.5 0-.9-.3-1-.8l-.3-3.3h5.6l-.3 3.3c-.1.5-.5.8-1 .8h-3z"
+                  />
+                </svg>
+              </div>
+              <div class="machine-head-text">
+                <div class="machine-label">本机</div>
+                <div class="machine-host" :title="machineInfo.hostname">{{ machineInfo.hostname }}</div>
+              </div>
+            </div>
 
-          <div class="machine-stats">
-            <div class="machine-stat" :title="machineInfo.cpuModel || 'CPU'">
-              <el-icon class="stat-icon"><Cpu /></el-icon>
-              <span class="stat-text">{{ shortCpuModel }}</span>
-            </div>
-            <div class="machine-stat" :title="machineInfo.username">
-              <el-icon class="stat-icon"><User /></el-icon>
-              <span class="stat-text">{{ machineInfo.username }}</span>
-            </div>
-          </div>
-
-          <div class="machine-meters">
-            <div class="machine-meter">
-              <div class="meter-head">
-                <span class="meter-label">内存</span>
-                <span class="meter-percent" :class="memTone">{{ memPercent }}%</span>
-              </div>
-              <div class="meter-track">
-                <div class="meter-fill" :class="memTone" :style="{ width: memPercent + '%' }" />
-              </div>
-              <div class="meter-text">
-                <span>{{ formatBytes(machineInfo.usedMem) }}</span>
-                <span class="meter-sep">/</span>
-                <span>{{ formatBytes(machineInfo.totalMem) }}</span>
-              </div>
+            <div class="machine-chips">
+              <span class="machine-chip">{{ machineInfo.platformLabel }}</span>
+              <span class="machine-chip">{{ machineInfo.arch }}</span>
+              <span class="machine-chip">{{ machineInfo.cpuCores }} 核</span>
             </div>
 
-            <div v-if="machineInfo.disk" class="machine-meter">
-              <div class="meter-head">
-                <span class="meter-label" :title="machineInfo.disk.mount">磁盘</span>
-                <span class="meter-percent" :class="diskTone">{{ diskPercent }}%</span>
+            <div class="machine-stats">
+              <div class="machine-stat" :title="machineInfo.cpuModel || 'CPU'">
+                <el-icon class="stat-icon"><Cpu /></el-icon>
+                <span class="stat-text">{{ shortCpuModel }}</span>
               </div>
-              <div class="meter-track">
-                <div class="meter-fill" :class="diskTone" :style="{ width: diskPercent + '%' }" />
-              </div>
-              <div class="meter-text">
-                <span>{{ formatBytes(machineInfo.disk.used) }}</span>
-                <span class="meter-sep">/</span>
-                <span>{{ formatBytes(machineInfo.disk.total) }}</span>
+              <div class="machine-stat" :title="machineInfo.username">
+                <el-icon class="stat-icon"><User /></el-icon>
+                <span class="stat-text">{{ machineInfo.username }}</span>
               </div>
             </div>
-          </div>
+          </template>
         </div>
         <div
           class="resize-handle"
@@ -119,7 +142,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, type Component } from 'vue'
 import { ElMessageBox } from 'element-plus'
-import { Grid, Clock, Setting, Monitor, Cpu, User, Collection } from '@element-plus/icons-vue'
+import { Grid, Clock, Setting, Cpu, User, Collection, Sunny } from '@element-plus/icons-vue'
 import ToolBox from './components/ToolBox.vue'
 import History from './components/History.vue'
 import Settings from './components/Settings.vue'
@@ -162,12 +185,25 @@ interface MachineInfo {
   } | null
 }
 
+interface WeatherInfo {
+  city: string
+  region?: string
+  country?: string
+  temperature: number
+  apparent?: number | null
+  humidity?: number | null
+  windSpeed?: number | null
+  summary: string
+}
+
 const sidebarWidth = ref(SIDEBAR.DEFAULT_WIDTH)
 const isResizing = ref(false)
 const startX = ref(0)
 const startWidth = ref(0)
 const machineInfo = ref<MachineInfo | null>(null)
+const weather = ref<WeatherInfo | null>(null)
 let machineInfoTimer: ReturnType<typeof setInterval> | null = null
+let weatherTimer: ReturnType<typeof setInterval> | null = null
 
 const toolList = ref<NavItem[]>([
   { id: 1, title: '工具箱', icon: Grid, active: true, component: ToolBox },
@@ -177,33 +213,14 @@ const toolList = ref<NavItem[]>([
 ])
 
 const activeItem = ref<NavItem>(toolList.value[0])
-const locked = ref(true)
+/** 先 checking，避免已解锁时闪现解锁页 */
+const gate = ref<'checking' | 'locked' | 'open'>('checking')
 
 const isMac = computed(() => {
   if (machineInfo.value?.platform === 'darwin') return true
   if (machineInfo.value?.platform === 'win32' || machineInfo.value?.platform === 'linux') return false
   return /Mac|Darwin/i.test(navigator.userAgent || '')
 })
-
-const memPercent = computed(() => {
-  if (!machineInfo.value?.totalMem) return 0
-  return Math.min(100, Math.round((machineInfo.value.usedMem / machineInfo.value.totalMem) * 100))
-})
-
-const diskPercent = computed(() => {
-  const disk = machineInfo.value?.disk
-  if (!disk?.total) return 0
-  return Math.min(100, Math.round((disk.used / disk.total) * 100))
-})
-
-const usageTone = (percent: number) => {
-  if (percent >= 85) return 'danger'
-  if (percent >= 70) return 'warn'
-  return 'ok'
-}
-
-const memTone = computed(() => usageTone(memPercent.value))
-const diskTone = computed(() => usageTone(diskPercent.value))
 
 const shortCpuModel = computed(() => {
   const model = machineInfo.value?.cpuModel || 'CPU'
@@ -213,10 +230,41 @@ const shortCpuModel = computed(() => {
     .trim() || 'CPU'
 })
 
-const formatBytes = (bytes: number) => {
-  const gb = bytes / (1024 * 1024 * 1024)
-  if (gb >= 100) return `${gb.toFixed(0)} GB`
-  return `${gb.toFixed(1)} GB`
+const weatherPlace = computed(() => {
+  const w = weather.value
+  if (!w) return ''
+  if (w.region && w.region !== w.city) return `${w.city} · ${w.region}`
+  return w.city || '当前位置'
+})
+
+const weatherTemp = computed(() => {
+  const t = weather.value?.temperature
+  if (t == null || Number.isNaN(t)) return '--'
+  return String(Math.round(t))
+})
+
+const weatherMeta = computed(() => {
+  const w = weather.value
+  if (!w) return ''
+  const parts: string[] = []
+  if (w.apparent != null) parts.push(`体感 ${Math.round(w.apparent)}°`)
+  if (w.humidity != null) parts.push(`湿度 ${Math.round(w.humidity)}%`)
+  return parts.join(' · ')
+})
+
+const weatherHint = computed(() => {
+  const w = weather.value
+  if (!w) return '点击刷新天气'
+  const wind = w.windSpeed != null ? `风速 ${Math.round(w.windSpeed)} km/h` : ''
+  return [weatherPlace.value, w.summary, wind, 'Open-Meteo · 点击刷新'].filter(Boolean).join(' · ')
+})
+
+const loadWeather = async () => {
+  try {
+    weather.value = await invoke('weather:current')
+  } catch (error) {
+    console.error('Failed to load weather:', error)
+  }
 }
 
 const loadMachineInfo = async () => {
@@ -260,12 +308,14 @@ let offUpdateStatus: (() => void) | undefined
 
 const startAppServices = () => {
   loadMachineInfo()
+  loadWeather()
   machineInfoTimer = setInterval(loadMachineInfo, 15000)
+  weatherTimer = setInterval(loadWeather, 15 * 60 * 1000)
   offUpdateStatus = on('update:status', handleUpdateStatus) as unknown as () => void
 }
 
 const onUnlocked = () => {
-  locked.value = false
+  gate.value = 'open'
   startAppServices()
 }
 
@@ -294,12 +344,12 @@ const handleUpdateStatus = async (status: { type: string; version?: string; mess
 onMounted(async () => {
   try {
     const status = await invoke<{ locked?: boolean }>('unlock:get-status')
-    locked.value = !!status?.locked
+    gate.value = status?.locked ? 'locked' : 'open'
   } catch (err) {
     console.error('[unlock] get-status failed', err)
-    locked.value = true
+    gate.value = 'locked'
   }
-  if (!locked.value) {
+  if (gate.value === 'open') {
     startAppServices()
   }
 })
@@ -309,11 +359,24 @@ onBeforeUnmount(() => {
     clearInterval(machineInfoTimer)
     machineInfoTimer = null
   }
+  if (weatherTimer) {
+    clearInterval(weatherTimer)
+    weatherTimer = null
+  }
   offUpdateStatus?.()
 })
 </script>
 
 <style>
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, #e8f1fb 0%, var(--cz-bg, #f3f7fc) 42%, #eef4fb 100%);
+}
+
 .app {
   height: 100%;
   overflow: hidden;
@@ -445,6 +508,79 @@ onBeforeUnmount(() => {
   box-shadow: var(--cz-shadow-sm);
 }
 
+.weather-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.weather-block:hover .weather-place {
+  color: var(--cz-primary);
+}
+
+.weather-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--cz-radius-tile);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+  color: #d97706;
+  background: var(--cz-warning-soft);
+}
+
+.weather-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.weather-place {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--cz-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.weather-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 1px;
+}
+
+.weather-temp {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cz-text-primary);
+  line-height: 1.1;
+}
+
+.weather-summary {
+  font-size: 12px;
+  color: var(--cz-text-secondary);
+}
+
+.weather-meta {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--cz-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .machine-head {
   display: flex;
   align-items: center;
@@ -463,6 +599,12 @@ onBeforeUnmount(() => {
   font-size: 16px;
   color: var(--cz-primary-hover);
   background: var(--cz-primary-soft);
+}
+
+.os-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .machine-mark.os-darwin {
@@ -555,86 +697,6 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.machine-meters {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 2px;
-}
-
-.machine-meter + .machine-meter {
-  padding-top: 8px;
-  border-top: 1px dashed var(--cz-border);
-}
-
-.meter-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.meter-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--cz-text-secondary);
-}
-
-.meter-percent {
-  font-size: 11px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.meter-percent.ok { color: var(--cz-primary); }
-.meter-percent.warn { color: #d97706; }
-.meter-percent.danger { color: #dc2626; }
-
-.meter-track {
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.22);
-  overflow: hidden;
-}
-
-.meter-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width var(--cz-transition), background-color var(--cz-transition);
-}
-
-.meter-fill.ok {
-  background: linear-gradient(90deg, #60a5fa, var(--cz-primary));
-}
-
-.meter-fill.warn {
-  background: linear-gradient(90deg, #fbbf24, #d97706);
-}
-
-.meter-fill.danger {
-  background: linear-gradient(90deg, #f87171, #dc2626);
-}
-
-.meter-text {
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--cz-text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.meter-sep {
-  opacity: 0.55;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .meter-fill {
-    transition: none;
-  }
 }
 
 .resize-handle {
