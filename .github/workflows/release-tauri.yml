@@ -9,6 +9,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v30.0.0)"
+        required: true
+        default: "v30.0.0"
 
 permissions:
   contents: write
@@ -60,15 +66,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CZTOOL_RELEASE_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # vite.config.ts 打包必填（也可在仓库 Secrets 覆盖）
+          CZTOOL_UNLOCK_API_URL: ${{ secrets.CZTOOL_UNLOCK_API_URL || 'https://cztu.oihome.dpdns.org' }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: CZTool ${{ github.ref_name }}
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          releaseName: CZTool ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           releaseBody: |
             Tauri 桌面端发布。
 
             - 安装包与 `latest.json` 供 Tauri 客户端自动更新
             - 旧 Electron 安装包无法热更到此版本，请手动安装一次
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
           # 若发布到公开仓而非本私有仓，配置 owner/repo 与有写权限的 token
